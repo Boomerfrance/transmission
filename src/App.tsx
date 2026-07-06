@@ -9,6 +9,7 @@ import Patrimony from './pages/Patrimony'
 import AdminPanel from './pages/AdminPanel'
 import Layout from './components/Layout'
 import AuthLayout from './components/AuthLayout'
+import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   return (
@@ -24,11 +25,13 @@ export default function App() {
       </Route>
 
       {/* App (authenticated) */}
-      <Route element={<Layout />}>
-        <Route path="/tableau-de-bord" element={<Dashboard />} />
-        <Route path="/canvas-familial" element={<FamilyCanvas />} />
-        <Route path="/patrimoine" element={<Patrimony />} />
-        <Route path="/admin" element={<AdminPanel />} />
+      <Route element={<ProtectedRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/tableau-de-bord" element={<Dashboard />} />
+          <Route path="/canvas-familial" element={<FamilyCanvas />} />
+          <Route path="/patrimoine" element={<Patrimony />} />
+          <Route path="/admin" element={<AdminPanel />} />
+        </Route>
       </Route>
     </Routes>
   )
