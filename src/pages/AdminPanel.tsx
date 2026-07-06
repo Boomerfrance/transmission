@@ -1,11 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Settings,
   Sparkles,
   Save,
   RotateCcw,
-  Eye,
-  EyeOff,
   CheckCircle2,
   AlertTriangle,
   Cpu,
@@ -13,18 +11,14 @@ import {
   MessageSquareText,
   TestTube,
   Send,
+  Loader2,
 } from 'lucide-react'
-
-interface LLMConfig {
-  model: string
-  temperature: number
-  systemPrompt: string
-}
+import { admin as adminApi, chat as chatApi, type LlmConfig } from '../lib/api'
 
 const MODEL_OPTIONS = [
   { value: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', desc: 'Rapide et précis, bon rapport qualité/prix' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', desc: 'Économique, adapté aux tâches simples' },
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'Anthropic', desc: 'Excellent pour l\'analyse et le raisonnement' },
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'Anthropic', desc: "Excellent pour l'analyse et le raisonnement" },
   { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', provider: 'Anthropic', desc: 'Ultra-rapide, faible coût' },
   { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'Google', desc: 'Performant sur les longues conversations' },
 ]
@@ -45,35 +39,83 @@ Règles importantes :
 - Tu restes neutre et ne prends jamais parti dans les conflits familiaux`
 
 export default function AdminPanel() {
-  const [config, setConfig] = useState<LLMConfig>({
+  const [config, setConfig] = useState<LlmConfig>({
     model: 'gpt-4o',
     temperature: 0.3,
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
   })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [showApiKey, setShowApiKey] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [testMessage, setTestMessage] = useState('')
   const [testResponse, setTestResponse] = useState('')
+  const [testModel, setTestModel] = useState('')
   const [testing, setTesting] = useState(false)
+  const [testError, setTestError] = useState('')
+
+  // Load config on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const cfg = await adminApi.getLlmConfig()
+        setConfig({
+          model: cfg.model || 'gpt-4o',
+          temperature: cfg.temperature ?? 0.3,
+          systemPrompt: cfg.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+        })
+      } catch {
+        // Use defaults if no config saved yet
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   const selectedModel = MODEL_OPTIONS.find((m) => m.value === config.model)
 
-  const handleSave = () => {
-    // TODO: API call to save config
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError('')
+    try {
+      const result = await adminApi.setLlmConfig(config)
+      if (result.config) {
+        setConfig({
+          model: result.config.model || config.model,
+          temperature: result.config.temperature ?? config.temperature,
+          systemPrompt: result.config.systemPrompt || config.systemPrompt,
+        })
+      }
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erreur de sauvegarde.')
+    }
+    setSaving(false)
   }
 
   const handleTest = async () => {
     if (!testMessage.trim()) return
     setTesting(true)
-    // Simulate API call
-    setTimeout(() => {
-      setTestResponse(
-        "Je suis l'assistant Transmission. En France, la transmission patrimoniale est encadrée par le Code civil et le Code général des impôts. L'abattement en ligne directe est de 100 000 € par parent et par enfant, renouvelable tous les 15 ans. Je vous recommande de consulter un notaire pour une analyse personnalisée de votre situation."
-      )
-      setTesting(false)
-    }, 1500)
+    setTestError('')
+    setTestResponse('')
+    try {
+      const result = await chatApi.send(testMessage)
+      setTestResponse(result.reply)
+      setTestModel(result.model || '')
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : "Erreur lors du test. Vérifiez la clé API OpenRouter.")
+    }
+    setTesting(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-navy-400" />
+        <span className="ml-2 text-navy-500">Chargement de la configuration...</span>
+      </div>
+    )
   }
 
   return (
@@ -214,13 +256,20 @@ export default function AdminPanel() {
                     Configuration sauvegardée
                   </div>
                 )}
+                {saveError && (
+                  <div className="flex items-center gap-1.5 text-sm text-red-600">
+                    <AlertTriangle size={15} />
+                    {saveError}
+                  </div>
+                )}
               </div>
               <button
                 onClick={handleSave}
-                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors"
+                disabled={saving}
+                className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors disabled:opacity-50"
               >
-                <Save size={15} />
-                Sauvegarder
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                {saving ? 'Sauvegarde...' : 'Sauvegarder'}
               </button>
             </div>
           </div>
@@ -254,28 +303,6 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* API Key */}
-          <div className="bg-white rounded-2xl border border-navy-100/60 shadow-sm p-5">
-            <h3 className="font-semibold text-navy-800 text-sm mb-3">Clé API</h3>
-            <div className="flex items-center gap-2">
-              <input
-                type={showApiKey ? 'text' : 'password'}
-                value="sk-proj-xxxxxxxxxxxxx"
-                readOnly
-                className="flex-1 px-3 py-2 bg-navy-50 border border-navy-100 rounded-lg text-xs font-mono text-navy-600"
-              />
-              <button
-                onClick={() => setShowApiKey(!showApiKey)}
-                className="p-2 text-navy-400 hover:text-navy-600 transition-colors"
-              >
-                {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-            <p className="text-xs text-navy-400 mt-2">
-              Configurée via les variables d'environnement Vercel.
-            </p>
-          </div>
-
           {/* Test zone */}
           <div className="bg-white rounded-2xl border border-navy-100/60 shadow-sm overflow-hidden">
             <div className="px-5 py-3 border-b border-navy-100 flex items-center gap-2">
@@ -297,20 +324,31 @@ export default function AdminPanel() {
                   disabled={testing}
                   className="px-3 py-2 bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors disabled:opacity-50"
                 >
-                  <Send size={15} />
+                  {testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
                 </button>
               </div>
 
               {testing && (
                 <div className="flex items-center gap-2 text-sm text-navy-500">
-                  <div className="w-4 h-4 border-2 border-navy-300 border-t-navy-600 rounded-full animate-spin" />
+                  <Loader2 size={16} className="animate-spin" />
                   Génération en cours...
                 </div>
               )}
 
+              {testError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {testError}
+                </div>
+              )}
+
               {testResponse && !testing && (
-                <div className="p-3 bg-navy-50 rounded-xl text-sm text-navy-700 leading-relaxed">
-                  {testResponse}
+                <div>
+                  <div className="p-3 bg-navy-50 rounded-xl text-sm text-navy-700 leading-relaxed">
+                    {testResponse}
+                  </div>
+                  {testModel && (
+                    <p className="text-xs text-navy-400 mt-1.5">Modèle : {testModel}</p>
+                  )}
                 </div>
               )}
             </div>

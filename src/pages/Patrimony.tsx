@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Home,
   Briefcase,
@@ -10,7 +10,10 @@ import {
   X,
   Check,
   Landmark,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
+import { assets as assetsApi, type Asset as ApiAsset } from '../lib/api'
 
 type AssetCategory = 'immobilier' | 'financier' | 'professionnel' | 'autre'
 
@@ -33,20 +36,39 @@ function fmt(n: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 }
 
-// Demo data
-const initialAssets: Asset[] = [
-  { id: '1', category: 'immobilier', label: 'Résidence principale — Paris 15e', value: 850_000, notes: 'Appartement 85m²' },
-  { id: '2', category: 'immobilier', label: 'Maison secondaire — Bretagne', value: 320_000, notes: 'Maison familiale depuis 1985' },
-  { id: '3', category: 'financier', label: 'Assurance-vie — Contrat AXA', value: 250_000, notes: 'Ouvert en 2008, clause bénéficiaire standard' },
-  { id: '4', category: 'financier', label: 'PEA — Boursorama', value: 120_000, notes: 'Portefeuille diversifié' },
-  { id: '5', category: 'financier', label: 'Livrets (Livret A + LDD)', value: 45_000, notes: '' },
-]
+function apiToLocal(a: ApiAsset): Asset {
+  return {
+    id: a.id,
+    category: (a.category as AssetCategory) || 'autre',
+    label: a.label,
+    value: parseFloat(a.value) || 0,
+    notes: a.notes || '',
+  }
+}
 
 export default function Patrimony() {
-  const [assets, setAssets] = useState<Asset[]>(initialAssets)
+  const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ category: 'immobilier' as AssetCategory, label: '', value: '', notes: '' })
+  const [submitting, setSubmitting] = useState(false)
+
+  // Load assets on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const items = await assetsApi.list()
+        setAssets(items.map(apiToLocal))
+      } catch (err) {
+        setError('Impossible de charger les biens.')
+        console.error(err)
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   const total = assets.reduce((s, a) => s + a.value, 0)
   const byCategory = assets.reduce((acc, a) => {
@@ -65,20 +87,44 @@ export default function Patrimony() {
     setShowForm(true)
   }
 
-  const saveAsset = () => {
+  const saveAsset = async () => {
     const value = parseFloat(form.value.replace(/\s/g, '')) || 0
     if (!form.label.trim()) return
 
-    if (editId) {
-      setAssets((prev) => prev.map((a) => a.id === editId ? { ...a, ...form, value } : a))
-    } else {
-      setAssets((prev) => [...prev, { id: Date.now().toString(), ...form, value }])
+    setSubmitting(true)
+    try {
+      if (editId) {
+        const updated = await assetsApi.update({ id: editId, category: form.category, label: form.label, value, notes: form.notes || undefined })
+        setAssets((prev) => prev.map((a) => a.id === editId ? apiToLocal(updated) : a))
+      } else {
+        const created = await assetsApi.create({ category: form.category, label: form.label, value, notes: form.notes || undefined })
+        setAssets((prev) => [...prev, apiToLocal(created)])
+      }
+      setShowForm(false)
+    } catch (err) {
+      console.error('Save error:', err)
+      setError('Erreur lors de la sauvegarde.')
     }
-    setShowForm(false)
+    setSubmitting(false)
   }
 
-  const deleteAsset = (id: string) => {
-    setAssets((prev) => prev.filter((a) => a.id !== id))
+  const deleteAsset = async (id: string) => {
+    try {
+      await assetsApi.delete(id)
+      setAssets((prev) => prev.filter((a) => a.id !== id))
+    } catch (err) {
+      console.error('Delete error:', err)
+      setError('Erreur lors de la suppression.')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-navy-400" />
+        <span className="ml-2 text-navy-500">Chargement du patrimoine...</span>
+      </div>
+    )
   }
 
   return (
@@ -101,6 +147,16 @@ export default function Patrimony() {
           Ajouter un bien
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+          <AlertCircle size={16} className="text-red-500" />
+          <p className="text-sm text-red-700">{error}</p>
+          <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
@@ -272,9 +328,10 @@ export default function Patrimony() {
               </button>
               <button
                 onClick={saveAsset}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700"
+                disabled={submitting}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 disabled:opacity-50"
               >
-                <Check size={15} />
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
                 {editId ? 'Enregistrer' : 'Ajouter'}
               </button>
             </div>

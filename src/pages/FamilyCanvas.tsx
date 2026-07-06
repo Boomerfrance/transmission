@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Users,
   Heart,
@@ -9,7 +9,9 @@ import {
   ChevronLeft,
   CheckCircle2,
   Save,
+  Loader2,
 } from 'lucide-react'
+import { canvas as canvasApi, type CanvasAnswer } from '../lib/api'
 
 interface Section {
   id: string
@@ -81,7 +83,7 @@ const sections: Section[] = [
         id: 'special_situations',
         label: 'Situations particulières à prendre en compte ?',
         type: 'textarea',
-        placeholder: 'Enfant handicapé, enfant d\'un autre lit, enfant à l\'étranger...',
+        placeholder: "Enfant handicapé, enfant d'un autre lit, enfant à l'étranger...",
       },
     ],
   },
@@ -95,13 +97,13 @@ const sections: Section[] = [
         id: 'main_residence',
         label: 'Souhaitez-vous que le conjoint puisse rester dans la résidence principale ?',
         type: 'select',
-        options: ['Oui, c\'est prioritaire', 'Oui, si possible', 'Ce n\'est pas une préoccupation', 'Non applicable'],
+        options: ["Oui, c'est prioritaire", 'Oui, si possible', "Ce n'est pas une préoccupation", 'Non applicable'],
       },
       {
         id: 'key_assets',
         label: 'Quels biens ont une importance particulière (affective ou financière) ?',
         type: 'textarea',
-        placeholder: 'Maison de famille, portefeuille d\'investissement, entreprise...',
+        placeholder: "Maison de famille, portefeuille d'investissement, entreprise...",
       },
       {
         id: 'asset_wishes',
@@ -127,7 +129,7 @@ const sections: Section[] = [
         id: 'existing_donations',
         label: 'Avez-vous déjà réalisé des donations ?',
         type: 'select',
-        options: ['Non, aucune', 'Oui, des donations simples', 'Oui, une donation-partage', 'Oui, des donations avec réserve d\'usufruit', 'Je ne suis pas sûr(e)'],
+        options: ['Non, aucune', 'Oui, des donations simples', 'Oui, une donation-partage', "Oui, des donations avec réserve d'usufruit", 'Je ne suis pas sûr(e)'],
       },
       {
         id: 'concerns',
@@ -141,13 +143,13 @@ const sections: Section[] = [
     id: 'communication',
     icon: MessageSquare,
     title: 'Communication familiale',
-    subtitle: "Le dialogue autour de la transmission",
+    subtitle: 'Le dialogue autour de la transmission',
     questions: [
       {
         id: 'family_discussion',
         label: 'Avez-vous déjà abordé la transmission en famille ?',
         type: 'select',
-        options: ['Oui, ouvertement', 'Partiellement, sans entrer dans les détails', 'Non, c\'est un sujet tabou', 'Non, mais nous souhaitons le faire'],
+        options: ['Oui, ouvertement', 'Partiellement, sans entrer dans les détails', "Non, c'est un sujet tabou", 'Non, mais nous souhaitons le faire'],
       },
       {
         id: 'alignment_level',
@@ -167,13 +169,105 @@ const sections: Section[] = [
 export default function FamilyCanvas() {
   const [currentSection, setCurrentSection] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [saveQueue, setSaveQueue] = useState<{ sectionId: string; questionId: string; answer: string }[]>([])
+
   const section = sections[currentSection]
 
-  const updateAnswer = (qId: string, value: string) => {
+  // Load saved answers on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const saved = await canvasApi.list()
+        const map: Record<string, string> = {}
+        saved.forEach((a: CanvasAnswer) => {
+          map[a.questionId] = a.answer
+        })
+        setAnswers(map)
+      } catch {
+        // Start fresh if API fails
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  // Flush save queue
+  useEffect(() => {
+    if (saveQueue.length === 0) return
+    let cancelled = false
+
+    async function flush() {
+      setSaving(true)
+      const batch = [...saveQueue]
+      setSaveQueue([])
+
+      for (const item of batch) {
+        if (cancelled) break
+        try {
+          await canvasApi.save(item)
+        } catch (err) {
+          console.error('Save error:', err)
+        }
+      }
+
+      if (!cancelled) {
+        setSaving(false)
+        setLastSaved(new Date())
+      }
+    }
+
+    const timer = setTimeout(flush, 800) // debounce 800ms
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [saveQueue])
+
+  const updateAnswer = useCallback((qId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [qId]: value }))
+    // Find which section this question belongs to
+    const sec = sections.find((s) => s.questions.some((q) => q.id === qId))
+    if (sec) {
+      setSaveQueue((prev) => {
+        // Replace any pending save for this question
+        const filtered = prev.filter((p) => p.questionId !== qId)
+        return [...filtered, { sectionId: sec.id, questionId: qId, answer: value }]
+      })
+    }
+  }, [])
+
+  const handleSaveAll = async () => {
+    setSaving(true)
+    try {
+      // Save all current answers
+      for (const sec of sections) {
+        for (const q of sec.questions) {
+          const val = answers[q.id]
+          if (val && val.trim()) {
+            await canvasApi.save({ sectionId: sec.id, questionId: q.id, answer: val })
+          }
+        }
+      }
+      setLastSaved(new Date())
+    } catch (err) {
+      console.error('Save all error:', err)
+    }
+    setSaving(false)
   }
 
-  const progress = ((currentSection + 1) / sections.length) * 100
+  // Count answered questions
+  const answeredCount = Object.values(answers).filter((v) => v && v.trim().length > 0).length
+  const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0)
+  const progress = totalQuestions > 0 ? (answeredCount / totalQuestions) * 100 : 0
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 animate-spin text-navy-400" />
+        <span className="ml-2 text-navy-500">Chargement du canvas...</span>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -187,9 +281,13 @@ export default function FamilyCanvas() {
             Répondez aux questions pour construire votre dossier de préparation à la transmission.
           </p>
         </div>
-        <button className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-navy-600 border border-navy-200 rounded-lg hover:bg-navy-50 transition-colors">
-          <Save size={15} />
-          Sauvegarder
+        <button
+          onClick={handleSaveAll}
+          disabled={saving}
+          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-navy-600 border border-navy-200 rounded-lg hover:bg-navy-50 transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+          {saving ? 'Sauvegarde...' : 'Tout sauvegarder'}
         </button>
       </div>
 
@@ -199,7 +297,15 @@ export default function FamilyCanvas() {
           <span className="text-sm font-medium text-navy-600">
             Section {currentSection + 1} / {sections.length}
           </span>
-          <span className="text-sm text-navy-400">{Math.round(progress)}% complété</span>
+          <div className="flex items-center gap-3">
+            {lastSaved && (
+              <span className="text-xs text-green-600 flex items-center gap-1">
+                <CheckCircle2 size={12} />
+                Sauvegardé
+              </span>
+            )}
+            <span className="text-sm text-navy-400">{answeredCount}/{totalQuestions} réponses — {Math.round(progress)}%</span>
+          </div>
         </div>
         <div className="w-full bg-navy-100 rounded-full h-2">
           <div
@@ -213,7 +319,7 @@ export default function FamilyCanvas() {
           {sections.map((s, i) => {
             const Icon = s.icon
             const active = i === currentSection
-            const done = i < currentSection
+            const sectionAnswered = s.questions.every((q) => answers[q.id]?.trim())
             return (
               <button
                 key={s.id}
@@ -221,12 +327,12 @@ export default function FamilyCanvas() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                   active
                     ? 'bg-navy-800 text-white'
-                    : done
+                    : sectionAnswered
                     ? 'bg-green-50 text-green-700'
                     : 'bg-navy-50 text-navy-500 hover:bg-navy-100'
                 }`}
               >
-                {done ? <CheckCircle2 size={13} /> : <Icon size={13} />}
+                {sectionAnswered ? <CheckCircle2 size={13} /> : <Icon size={13} />}
                 {s.title}
               </button>
             )
@@ -323,6 +429,8 @@ export default function FamilyCanvas() {
           onClick={() => {
             if (currentSection < sections.length - 1) {
               setCurrentSection(currentSection + 1)
+            } else {
+              handleSaveAll()
             }
           }}
           className={`flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
