@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { eq } from 'drizzle-orm'
-import { db, schema } from '../_lib/db'
-import { getAuthUser } from '../_lib/auth'
-import { handleCors } from '../_lib/cors'
+import { db, schema } from '../_lib/db.js'
+import { getAuthUser } from '../_lib/auth.js'
+import { handleCors } from '../_lib/cors.js'
 
 /**
  * GET  /api/admin/llm-config — Get current LLM configuration

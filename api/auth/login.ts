@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
-import { db, schema } from '../_lib/db'
-import { signToken } from '../_lib/auth'
-import { handleCors } from '../_lib/cors'
+import { db, schema } from '../_lib/db.js'
+import { signToken } from '../_lib/auth.js'
+import { handleCors } from '../_lib/cors.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return
