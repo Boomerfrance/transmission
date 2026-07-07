@@ -16,11 +16,12 @@ import {
 import { admin as adminApi, chat as chatApi, type LlmConfig } from '../lib/api'
 
 const MODEL_OPTIONS = [
-  { value: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', desc: 'Rapide et précis, bon rapport qualité/prix' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', desc: 'Économique, adapté aux tâches simples' },
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'Anthropic', desc: "Excellent pour l'analyse et le raisonnement" },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', provider: 'Anthropic', desc: 'Ultra-rapide, faible coût' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'Google', desc: 'Performant sur les longues conversations' },
+  { value: 'nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron Ultra 550B', provider: 'NVIDIA (gratuit)', desc: 'Puissant et gratuit via OpenRouter' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o', provider: 'OpenAI', desc: 'Rapide et précis, bon rapport qualité/prix' },
+  { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', desc: 'Économique, adapté aux tâches simples' },
+  { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', provider: 'Anthropic', desc: "Excellent pour l'analyse et le raisonnement" },
+  { value: 'anthropic/claude-3.5-haiku', label: 'Claude 3.5 Haiku', provider: 'Anthropic', desc: 'Ultra-rapide, faible coût' },
+  { value: 'google/gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro', provider: 'Google', desc: 'Performant sur les longues conversations' },
 ]
 
 const DEFAULT_SYSTEM_PROMPT = `Tu es l'assistant IA de Transmission, une plateforme de gouvernance familiale patrimoniale.
@@ -40,7 +41,7 @@ Règles importantes :
 
 export default function AdminPanel() {
   const [config, setConfig] = useState<LlmConfig>({
-    model: 'gpt-4o',
+    model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
     temperature: 0.3,
     systemPrompt: DEFAULT_SYSTEM_PROMPT,
   })
@@ -60,7 +61,7 @@ export default function AdminPanel() {
       try {
         const cfg = await adminApi.getLlmConfig()
         setConfig({
-          model: cfg.model || 'gpt-4o',
+          model: cfg.model || 'nvidia/nemotron-3-ultra-550b-a55b:free',
           temperature: cfg.temperature ?? 0.3,
           systemPrompt: cfg.systemPrompt || DEFAULT_SYSTEM_PROMPT,
         })

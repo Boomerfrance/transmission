@@ -32,11 +32,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get active LLM config
     const [config] = await db.select().from(schema.llmConfig).where(eq(schema.llmConfig.isActive, true)).limit(1)
 
-    const model = config?.model || 'gpt-4o'
+    const model = config?.model || 'nvidia/nemotron-3-ultra-550b-a55b:free'
     const temperature = config?.temperature ?? 0.3
     const systemPrompt = config?.systemPrompt || "Tu es l'assistant IA de Transmission, une plateforme de gouvernance familiale patrimoniale."
 
-    const openrouterModel = MODEL_MAP[model] || `openai/${model}`
+    // If model contains '/', it's already a full OpenRouter model ID
+    const openrouterModel = model.includes('/') ? model : (MODEL_MAP[model] || `openai/${model}`)
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
