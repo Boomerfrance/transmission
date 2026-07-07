@@ -44,12 +44,12 @@ export interface AuthResponse {
 
 export const auth = {
   login: (email: string, password: string) =>
-    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    request<AuthResponse>('/auth?action=login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 
   signup: (name: string, email: string, password: string) =>
-    request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
+    request<AuthResponse>('/auth?action=signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
 
-  me: () => request<{ user: AuthResponse['user']; family: { id: string; name: string } | null }>('/auth/me'),
+  me: () => request<{ user: AuthResponse['user']; family: { id: string; name: string } | null }>('/auth'),
 }
 
 // ── Assets ────────────────────────────────────────────
@@ -195,7 +195,7 @@ export interface BlogArticleFull extends BlogArticle {
 export const blog = {
   list: () => request<BlogArticle[]>('/blog'),
   listAll: () => request<BlogArticle[]>('/blog?all=true'),
-  get: (slug: string) => request<BlogArticleFull>(`/blog/${slug}`),
+  get: (slug: string) => request<BlogArticleFull>(`/blog?slug=${encodeURIComponent(slug)}`),
   create: (data: { title: string; slug: string; summary: string; content: string; category: string; published?: boolean; authorName?: string }) =>
     request<BlogArticleFull>('/blog', { method: 'POST', body: JSON.stringify(data) }),
   update: (data: { id: string; title?: string; slug?: string; summary?: string; content?: string; category?: string; published?: boolean; authorName?: string }) =>

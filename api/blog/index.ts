@@ -1,5 +1,9 @@
+/**
+ * Blog API: GET /api/blog (list) or GET /api/blog?slug=xxx (single article)
+ * POST/PUT/DELETE for admin CRUD.
+ */
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { eq, desc } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
 import { getAuthUser } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
@@ -8,14 +12,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return
 
   try {
-    // GET — list published articles (public) or all articles (admin)
+    // GET — list published articles or get single article by slug
     if (req.method === 'GET') {
+      const slug = req.query.slug as string | undefined
       const auth = getAuthUser(req)
       const isAdmin = auth?.role === 'admin'
 
-      let articles
+      // Single article by slug
+      if (slug) {
+        const conditions = isAdmin
+          ? eq(schema.blogArticles.slug, slug)
+          : and(eq(schema.blogArticles.slug, slug), eq(schema.blogArticles.published, true))
+
+        const [article] = await db
+          .select()
+          .from(schema.blogArticles)
+          .where(conditions!)
+          .limit(1)
+
+        if (!article) {
+          return res.status(404).json({ error: 'Article introuvable.' })
+        }
+        return res.status(200).json(article)
+      }
+
+      // List articles
       if (isAdmin && req.query.all === 'true') {
-        articles = await db
+        const articles = await db
           .select({
             id: schema.blogArticles.id,
             slug: schema.blogArticles.slug,
@@ -29,22 +52,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           })
           .from(schema.blogArticles)
           .orderBy(desc(schema.blogArticles.createdAt))
-      } else {
-        articles = await db
-          .select({
-            id: schema.blogArticles.id,
-            slug: schema.blogArticles.slug,
-            title: schema.blogArticles.title,
-            summary: schema.blogArticles.summary,
-            category: schema.blogArticles.category,
-            published: schema.blogArticles.published,
-            authorName: schema.blogArticles.authorName,
-            createdAt: schema.blogArticles.createdAt,
-          })
-          .from(schema.blogArticles)
-          .where(eq(schema.blogArticles.published, true))
-          .orderBy(desc(schema.blogArticles.createdAt))
+        return res.status(200).json(articles)
       }
+
+      const articles = await db
+        .select({
+          id: schema.blogArticles.id,
+          slug: schema.blogArticles.slug,
+          title: schema.blogArticles.title,
+          summary: schema.blogArticles.summary,
+          category: schema.blogArticles.category,
+          published: schema.blogArticles.published,
+          authorName: schema.blogArticles.authorName,
+          createdAt: schema.blogArticles.createdAt,
+        })
+        .from(schema.blogArticles)
+        .where(eq(schema.blogArticles.published, true))
+        .orderBy(desc(schema.blogArticles.createdAt))
 
       return res.status(200).json(articles)
     }
@@ -62,11 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const [article] = await db.insert(schema.blogArticles).values({
-        title,
-        slug,
-        summary,
-        content,
-        category,
+        title, slug, summary, content, category,
         published: published ?? false,
         authorName: authorName || 'Transmission',
       }).returning()
