@@ -105,8 +105,20 @@ export interface LlmConfig {
   systemPrompt: string
 }
 
+export interface AdminUser {
+  id: string
+  email: string
+  name: string
+  role: string
+  blocked: boolean
+  createdAt: string
+}
+
 export const admin = {
   getLlmConfig: () => request<LlmConfig>('/admin/llm-config'),
   setLlmConfig: (config: Partial<LlmConfig>) =>
     request<{ success: boolean; config: LlmConfig }>('/admin/llm-config', { method: 'POST', body: JSON.stringify(config) }),
+  getUsers: () => request<AdminUser[]>('/admin/users'),
+  updateUser: (userId: string, data: { role?: string; blocked?: boolean }) =>
+    request<AdminUser>('/admin/users', { method: 'PATCH', body: JSON.stringify({ userId, ...data }) }),
 }

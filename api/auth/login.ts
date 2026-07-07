@@ -29,6 +29,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect.' })
     }
 
+    if (user.blocked) {
+      return res.status(403).json({ error: 'Votre compte a été bloqué. Contactez un administrateur.' })
+    }
+
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect.' })
