@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   X,
+  BookOpen,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
@@ -21,6 +22,7 @@ const nav = [
   { to: '/documents', label: 'Documents', icon: FileText },
   { to: '/checklist', label: 'Checklist', icon: CheckSquare },
   { to: '/dossier', label: 'Dossier Notaire', icon: FileDown },
+  { to: '/blog', label: 'Blog & FAQ', icon: BookOpen },
   { to: '/admin', label: 'Administration', icon: Settings, adminOnly: true },
 ]
 

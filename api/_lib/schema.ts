@@ -142,6 +142,21 @@ export const checklistItems = pgTable('checklist_items', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// ── Blog Articles ─────────────────────────────────────
+
+export const blogArticles = pgTable('blog_articles', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: varchar('slug', { length: 255 }).notNull().unique(),
+  title: varchar('title', { length: 500 }).notNull(),
+  summary: text('summary').notNull(),
+  content: text('content').notNull(), // Markdown
+  category: varchar('category', { length: 50 }).notNull(), // fiscalite | juridique | patrimoine | pratique | faq
+  published: boolean('published').notNull().default(false),
+  authorName: varchar('author_name', { length: 255 }).notNull().default('Transmission'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // ── Conversations ─────────────────────────────────────
 
 export const conversations = pgTable('conversations', {

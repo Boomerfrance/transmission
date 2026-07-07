@@ -174,6 +174,36 @@ export const checklist = {
     request<{ success: boolean }>('/checklist', { method: 'DELETE', body: JSON.stringify({ id }) }),
 }
 
+// ── Blog ──────────────────────────────────────────────
+
+export interface BlogArticle {
+  id: string
+  slug: string
+  title: string
+  summary: string
+  category: string
+  published: boolean
+  authorName: string
+  createdAt: string
+}
+
+export interface BlogArticleFull extends BlogArticle {
+  content: string
+  updatedAt: string
+}
+
+export const blog = {
+  list: () => request<BlogArticle[]>('/blog'),
+  listAll: () => request<BlogArticle[]>('/blog?all=true'),
+  get: (slug: string) => request<BlogArticleFull>(`/blog/${slug}`),
+  create: (data: { title: string; slug: string; summary: string; content: string; category: string; published?: boolean; authorName?: string }) =>
+    request<BlogArticleFull>('/blog', { method: 'POST', body: JSON.stringify(data) }),
+  update: (data: { id: string; title?: string; slug?: string; summary?: string; content?: string; category?: string; published?: boolean; authorName?: string }) =>
+    request<BlogArticleFull>('/blog', { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<{ success: boolean }>('/blog', { method: 'DELETE', body: JSON.stringify({ id }) }),
+}
+
 // ── Export ─────────────────────────────────────────────
 
 export interface DossierExport {

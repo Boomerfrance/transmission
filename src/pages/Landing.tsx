@@ -27,6 +27,7 @@ export default function Landing() {
               <a href="#fonctionnalites" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Fonctionnalités</a>
               <a href="#comment-ca-marche" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Comment ça marche</a>
               <Link to="/simulateur" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Simulateur</Link>
+              <Link to="/blog" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Blog & FAQ</Link>
             </div>
             <div className="flex items-center gap-3">
               <Link

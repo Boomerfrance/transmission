@@ -10,6 +10,8 @@ import Documents from './pages/Documents'
 import Checklist from './pages/Checklist'
 import ExportDossier from './pages/ExportDossier'
 import AdminPanel from './pages/AdminPanel'
+import Blog from './pages/Blog'
+import BlogArticle from './pages/BlogArticle'
 import Layout from './components/Layout'
 import AuthLayout from './components/AuthLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -20,6 +22,8 @@ export default function App() {
       {/* Public */}
       <Route path="/" element={<Landing />} />
       <Route path="/simulateur" element={<Simulator />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/blog/:slug" element={<BlogArticle />} />
 
       {/* Auth */}
       <Route element={<AuthLayout />}>
