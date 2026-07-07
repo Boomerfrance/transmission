@@ -1,14 +1,5 @@
 /**
  * Database schema for Transmission — Drizzle ORM + Neon PostgreSQL
- *
- * Tables:
- * - users: User accounts
- * - families: Family groups
- * - family_members: Members of a family
- * - assets: Patrimony items
- * - canvas_answers: Family Canvas questionnaire responses
- * - llm_config: LLM configuration (admin-managed, 3 params)
- * - conversations: AI chat history
  */
 
 import {
@@ -58,6 +49,7 @@ export const familyMembers = pgTable('family_members', {
   relationship: varchar('relationship', { length: 100 }).notNull(),
   birthYear: integer('birth_year'),
   notes: text('notes'),
+  parentId: uuid('parent_id'), // self-reference for tree structure
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -68,7 +60,7 @@ export const assets = pgTable('assets', {
   familyId: uuid('family_id')
     .references(() => families.id)
     .notNull(),
-  category: varchar('category', { length: 50 }).notNull(), // immobilier | financier | professionnel | autre
+  category: varchar('category', { length: 50 }).notNull(),
   label: varchar('label', { length: 500 }).notNull(),
   value: decimal('value', { precision: 15, scale: 2 }).notNull(),
   notes: text('notes'),
@@ -112,8 +104,8 @@ export const documents = pgTable('documents', {
     .references(() => families.id)
     .notNull(),
   name: varchar('name', { length: 255 }).notNull(),
-  category: varchar('category', { length: 50 }).notNull(), // identite | patrimoine | juridique | fiscal | autre
-  status: varchar('status', { length: 50 }).notNull().default('a_fournir'), // a_fournir | en_cours | obtenu
+  category: varchar('category', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('a_fournir'),
   notes: text('notes'),
   fileName: varchar('file_name', { length: 255 }),
   fileType: varchar('file_type', { length: 100 }),
@@ -132,7 +124,7 @@ export const checklistItems = pgTable('checklist_items', {
     .notNull(),
   title: varchar('title', { length: 500 }).notNull(),
   description: text('description'),
-  category: varchar('category', { length: 50 }).notNull(), // documents | patrimoine | famille | juridique | fiscal
+  category: varchar('category', { length: 50 }).notNull(),
   isCompleted: boolean('is_completed').notNull().default(false),
   isDefault: boolean('is_default').notNull().default(false),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -149,15 +141,15 @@ export const blogArticles = pgTable('blog_articles', {
   slug: varchar('slug', { length: 255 }).notNull().unique(),
   title: varchar('title', { length: 500 }).notNull(),
   summary: text('summary').notNull(),
-  content: text('content').notNull(), // Markdown
-  category: varchar('category', { length: 50 }).notNull(), // fiscalite | juridique | patrimoine | pratique | faq
+  content: text('content').notNull(),
+  category: varchar('category', { length: 50 }).notNull(),
   published: boolean('published').notNull().default(false),
   authorName: varchar('author_name', { length: 255 }).notNull().default('Transmission'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-// ── Conversations ─────────────────────────────────────
+// ── Conversations & Messages ──────────────────────────
 
 export const conversations = pgTable('conversations', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -165,7 +157,57 @@ export const conversations = pgTable('conversations', {
     .references(() => users.id)
     .notNull(),
   familyId: uuid('family_id').references(() => families.id),
+  title: varchar('title', { length: 255 }).notNull().default('Nouvelle conversation'),
   messages: jsonb('messages').notNull().default('[]'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// ── Invitations ───────────────────────────────────────
+
+export const invitations = pgTable('invitations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  familyId: uuid('family_id')
+    .references(() => families.id)
+    .notNull(),
+  invitedBy: uuid('invited_by')
+    .references(() => users.id)
+    .notNull(),
+  inviteeEmail: varchar('invitee_email', { length: 255 }).notNull(),
+  role: varchar('role', { length: 50 }).notNull().default('member'), // member | editor
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // pending | accepted | declined
+  acceptedBy: uuid('accepted_by').references(() => users.id),
+  token: varchar('token', { length: 255 }).notNull(), // unique invite token
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// ── Family Access (who can access which family) ───────
+
+export const familyAccess = pgTable('family_access', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  familyId: uuid('family_id')
+    .references(() => families.id)
+    .notNull(),
+  userId: uuid('user_id')
+    .references(() => users.id)
+    .notNull(),
+  role: varchar('role', { length: 50 }).notNull().default('member'), // owner | member | editor
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// ── Notifications ─────────────────────────────────────
+
+export const notifications = pgTable('notifications', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id')
+    .references(() => users.id)
+    .notNull(),
+  type: varchar('type', { length: 50 }).notNull(), // invitation | checklist | document | system
+  title: varchar('title', { length: 255 }).notNull(),
+  message: text('message').notNull(),
+  isRead: boolean('is_read').notNull().default(false),
+  linkTo: varchar('link_to', { length: 255 }), // optional in-app link
+  metadata: jsonb('metadata'), // extra data
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 })

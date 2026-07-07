@@ -92,9 +92,33 @@ export const canvas = {
 
 // ── Chat ──────────────────────────────────────────────
 
+export interface Conversation {
+  id: string
+  title: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConversationFull extends Conversation {
+  messages: Array<{ role: 'user' | 'assistant'; content: string; timestamp: string }>
+}
+
+export interface ChatResponse {
+  reply: string
+  model: string
+  conversationId: string
+}
+
 export const chat = {
-  send: (message: string) =>
-    request<{ reply: string; model: string }>('/chat', { method: 'POST', body: JSON.stringify({ message }) }),
+  list: () => request<Conversation[]>('/chat'),
+  get: (id: string) => request<ConversationFull>(`/chat?id=${id}`),
+  send: (message: string, conversationId?: string) =>
+    request<ChatResponse>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationId }),
+    }),
+  delete: (id: string) =>
+    request<{ success: boolean }>('/chat', { method: 'DELETE', body: JSON.stringify({ id }) }),
 }
 
 // ── Admin ─────────────────────────────────────────────
@@ -115,12 +139,93 @@ export interface AdminUser {
 }
 
 export const admin = {
-  getLlmConfig: () => request<LlmConfig>('/admin/llm-config'),
+  getLlmConfig: () => request<LlmConfig>('/admin?section=llm'),
   setLlmConfig: (config: Partial<LlmConfig>) =>
-    request<{ success: boolean; config: LlmConfig }>('/admin/llm-config', { method: 'POST', body: JSON.stringify(config) }),
-  getUsers: () => request<AdminUser[]>('/admin/users'),
+    request<{ success: boolean; config: LlmConfig }>('/admin?section=llm', { method: 'POST', body: JSON.stringify(config) }),
+  getUsers: () => request<AdminUser[]>('/admin?section=users'),
   updateUser: (userId: string, data: { role?: string; blocked?: boolean }) =>
-    request<AdminUser>('/admin/users', { method: 'PATCH', body: JSON.stringify({ userId, ...data }) }),
+    request<AdminUser>('/admin?section=users', { method: 'PATCH', body: JSON.stringify({ userId, ...data }) }),
+}
+
+// ── Family Members ────────────────────────────────────
+
+export interface FamilyMember {
+  id: string
+  familyId: string
+  name: string
+  relationship: string
+  birthYear: number | null
+  notes: string | null
+  parentId: string | null
+  createdAt: string
+}
+
+export const family = {
+  listMembers: () => request<FamilyMember[]>('/family'),
+  addMember: (data: { name: string; relationship: string; birthYear?: number; notes?: string; parentId?: string }) =>
+    request<FamilyMember>('/family', { method: 'POST', body: JSON.stringify(data) }),
+  updateMember: (data: { id: string; name?: string; relationship?: string; birthYear?: number; notes?: string; parentId?: string }) =>
+    request<FamilyMember>('/family', { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMember: (id: string) =>
+    request<{ success: boolean }>('/family', { method: 'DELETE', body: JSON.stringify({ id }) }),
+}
+
+// ── Invitations ───────────────────────────────────────
+
+export interface Invitation {
+  id: string
+  familyId: string
+  invitedBy: string
+  inviteeEmail: string
+  role: string
+  status: string
+  token: string
+  createdAt: string
+}
+
+export const invitations = {
+  list: () => request<{ sent: Invitation[]; received: Invitation[] }>('/family?section=invitations'),
+  create: (email: string, role?: string) =>
+    request<Invitation>('/family?section=invitations', { method: 'POST', body: JSON.stringify({ email, role }) }),
+  accept: (invitationId: string) =>
+    request<{ success: boolean }>('/family?section=invitations&action=accept', {
+      method: 'POST',
+      body: JSON.stringify({ invitationId }),
+    }),
+  decline: (invitationId: string) =>
+    request<Invitation>('/family?section=invitations', {
+      method: 'PATCH',
+      body: JSON.stringify({ invitationId, action: 'decline' }),
+    }),
+  cancel: (invitationId: string) =>
+    request<Invitation>('/family?section=invitations', {
+      method: 'PATCH',
+      body: JSON.stringify({ invitationId, action: 'cancel' }),
+    }),
+}
+
+// ── Notifications ─────────────────────────────────────
+
+export interface Notification {
+  id: string
+  userId: string
+  type: string
+  title: string
+  message: string
+  isRead: boolean
+  linkTo: string | null
+  createdAt: string
+}
+
+export const notifications = {
+  list: () => request<Notification[]>('/notifications'),
+  unreadCount: () => request<{ count: number }>('/notifications?unread=1'),
+  markRead: (id: string) =>
+    request<Notification>('/notifications', { method: 'PATCH', body: JSON.stringify({ id }) }),
+  markAllRead: () =>
+    request<{ success: boolean }>('/notifications', { method: 'PATCH', body: JSON.stringify({ markAll: true }) }),
+  delete: (id: string) =>
+    request<{ success: boolean }>('/notifications', { method: 'DELETE', body: JSON.stringify({ id }) }),
 }
 
 // ── Documents ─────────────────────────────────────────

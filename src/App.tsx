@@ -5,10 +5,13 @@ import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Simulator from './pages/Simulator'
 import FamilyCanvas from './pages/FamilyCanvas'
+import FamilyTree from './pages/FamilyTree'
 import Patrimony from './pages/Patrimony'
 import Documents from './pages/Documents'
 import Checklist from './pages/Checklist'
 import ExportDossier from './pages/ExportDossier'
+import ChatHistory from './pages/ChatHistory'
+import Invitations from './pages/Invitations'
 import AdminPanel from './pages/AdminPanel'
 import Blog from './pages/Blog'
 import BlogArticle from './pages/BlogArticle'
@@ -36,9 +39,12 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/tableau-de-bord" element={<Dashboard />} />
           <Route path="/canvas-familial" element={<FamilyCanvas />} />
+          <Route path="/arbre-familial" element={<FamilyTree />} />
           <Route path="/patrimoine" element={<Patrimony />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/checklist" element={<Checklist />} />
+          <Route path="/assistant" element={<ChatHistory />} />
+          <Route path="/invitations" element={<Invitations />} />
           <Route path="/dossier" element={<ExportDossier />} />
           <Route path="/admin" element={<AdminPanel />} />
         </Route>
