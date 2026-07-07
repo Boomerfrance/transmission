@@ -10,18 +10,13 @@ import {
   Clock,
   AlertCircle,
   Sparkles,
+  CheckSquare,
+  FileDown,
 } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
-import { assets as assetsApi, canvas as canvasApi } from '../lib/api'
+import { assets as assetsApi, canvas as canvasApi, documents as docsApi, checklist as checklistApi } from '../lib/api'
 
 const steps = [
-  {
-    icon: Calculator,
-    title: 'Simulation fiscale',
-    desc: 'Estimez vos droits de succession',
-    to: '/simulateur',
-    key: 'simulator',
-  },
   {
     icon: Landmark,
     title: 'Cartographie patrimoine',
@@ -38,9 +33,23 @@ const steps = [
   },
   {
     icon: FileText,
+    title: 'Documents',
+    desc: 'Rassemblez les pièces nécessaires',
+    to: '/documents',
+    key: 'documents',
+  },
+  {
+    icon: CheckSquare,
+    title: 'Checklist',
+    desc: 'Validez chaque étape de préparation',
+    to: '/checklist',
+    key: 'checklist',
+  },
+  {
+    icon: FileDown,
     title: 'Dossier Notaire',
-    desc: 'Préparez le dossier pour le notaire',
-    to: '#',
+    desc: 'Exportez votre dossier complet en PDF',
+    to: '/dossier',
     key: 'dossier',
   },
 ]
@@ -58,17 +67,27 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [assetCount, setAssetCount] = useState(0)
   const [canvasAnswered, setCanvasAnswered] = useState(0)
+  const [docsObtained, setDocsObtained] = useState(0)
+  const [docsTotal, setDocsTotal] = useState(0)
+  const [checkDone, setCheckDone] = useState(0)
+  const [checkTotal, setCheckTotal] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [assetList, canvasList] = await Promise.all([
+        const [assetList, canvasList, docsList, checkList] = await Promise.all([
           assetsApi.list().catch(() => []),
           canvasApi.list().catch(() => []),
+          docsApi.list().catch(() => []),
+          checklistApi.list().catch(() => []),
         ])
         setAssetCount(assetList.length)
         setCanvasAnswered(canvasList.filter((a) => a.answer.trim().length > 0).length)
+        setDocsObtained(docsList.filter((d) => d.status === 'obtenu').length)
+        setDocsTotal(docsList.length)
+        setCheckDone(checkList.filter((c) => c.isCompleted).length)
+        setCheckTotal(checkList.length)
       } catch { /* ignore */ }
       setLoading(false)
     }
@@ -79,18 +98,31 @@ export default function Dashboard() {
   const hasAssets = assetCount > 0
   const canvasDone = canvasAnswered >= TOTAL_CANVAS_QUESTIONS
   const canvasStarted = canvasAnswered > 0
+  const allDocsObtained = docsTotal > 0 && docsObtained === docsTotal
+  const someDocsStarted = docsObtained > 0
+  const allCheckDone = checkTotal > 0 && checkDone === checkTotal
+  const someCheckStarted = checkDone > 0
 
   function getStatus(key: string): 'done' | 'current' | 'todo' {
     switch (key) {
-      case 'simulator': return 'done' // always available
       case 'patrimony':
         return hasAssets ? 'done' : 'current'
       case 'canvas':
         if (canvasDone) return 'done'
         if (canvasStarted || hasAssets) return 'current'
         return 'todo'
+      case 'documents':
+        if (allDocsObtained) return 'done'
+        if (someDocsStarted || canvasStarted) return 'current'
+        return 'todo'
+      case 'checklist':
+        if (allCheckDone) return 'done'
+        if (someCheckStarted || hasAssets) return 'current'
+        return 'todo'
       case 'dossier':
-        return canvasDone && hasAssets ? 'current' : 'todo'
+        if (allCheckDone && allDocsObtained && canvasDone && hasAssets) return 'done'
+        if (hasAssets || canvasStarted) return 'current'
+        return 'todo'
       default: return 'todo'
     }
   }
@@ -178,7 +210,7 @@ export default function Dashboard() {
 
       {/* Stats bar */}
       {!loading && (
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-xl border border-navy-100 p-4">
             <div className="text-xs text-navy-500 mb-1">Biens inventoriés</div>
             <div className="text-2xl font-bold text-navy-800">{assetCount}</div>
@@ -186,6 +218,14 @@ export default function Dashboard() {
           <div className="bg-white rounded-xl border border-navy-100 p-4">
             <div className="text-xs text-navy-500 mb-1">Questions canvas</div>
             <div className="text-2xl font-bold text-navy-800">{canvasAnswered} / {TOTAL_CANVAS_QUESTIONS}</div>
+          </div>
+          <div className="bg-white rounded-xl border border-navy-100 p-4">
+            <div className="text-xs text-navy-500 mb-1">Documents obtenus</div>
+            <div className="text-2xl font-bold text-navy-800">{docsObtained} / {docsTotal || '—'}</div>
+          </div>
+          <div className="bg-white rounded-xl border border-navy-100 p-4">
+            <div className="text-xs text-navy-500 mb-1">Checklist</div>
+            <div className="text-2xl font-bold text-navy-800">{checkDone} / {checkTotal || '—'}</div>
           </div>
         </div>
       )}

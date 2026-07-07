@@ -122,3 +122,70 @@ export const admin = {
   updateUser: (userId: string, data: { role?: string; blocked?: boolean }) =>
     request<AdminUser>('/admin/users', { method: 'PATCH', body: JSON.stringify({ userId, ...data }) }),
 }
+
+// ── Documents ─────────────────────────────────────────
+
+export interface Document {
+  id: string
+  familyId: string
+  name: string
+  category: string
+  status: string
+  notes: string | null
+  fileName: string | null
+  fileType: string | null
+  fileSize: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const documents = {
+  list: () => request<Document[]>('/documents'),
+  create: (data: { name: string; category: string; status?: string; notes?: string }) =>
+    request<Document>('/documents', { method: 'POST', body: JSON.stringify(data) }),
+  update: (data: { id: string; name?: string; category?: string; status?: string; notes?: string }) =>
+    request<Document>('/documents', { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<{ success: boolean }>('/documents', { method: 'DELETE', body: JSON.stringify({ id }) }),
+}
+
+// ── Checklist ─────────────────────────────────────────
+
+export interface ChecklistItem {
+  id: string
+  familyId: string
+  title: string
+  description: string | null
+  category: string
+  isCompleted: boolean
+  isDefault: boolean
+  sortOrder: number
+  completedAt: string | null
+  createdAt: string
+}
+
+export const checklist = {
+  list: () => request<ChecklistItem[]>('/checklist'),
+  create: (data: { title: string; category: string; description?: string }) =>
+    request<ChecklistItem>('/checklist', { method: 'POST', body: JSON.stringify(data) }),
+  toggle: (id: string, isCompleted: boolean) =>
+    request<ChecklistItem>('/checklist', { method: 'PATCH', body: JSON.stringify({ id, isCompleted }) }),
+  delete: (id: string) =>
+    request<{ success: boolean }>('/checklist', { method: 'DELETE', body: JSON.stringify({ id }) }),
+}
+
+// ── Export ─────────────────────────────────────────────
+
+export interface DossierExport {
+  user: { name: string; email: string }
+  family: { id: string; name: string }
+  patrimoine: { assets: Asset[]; total: number }
+  canvas: CanvasAnswer[]
+  checklist: { items: ChecklistItem[]; completed: number; total: number; progress: number }
+  documents: { items: Document[]; obtained: number; total: number }
+  generatedAt: string
+}
+
+export const exportApi = {
+  getDossier: () => request<DossierExport>('/export/dossier'),
+}

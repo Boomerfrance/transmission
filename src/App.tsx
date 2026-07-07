@@ -6,6 +6,9 @@ import Dashboard from './pages/Dashboard'
 import Simulator from './pages/Simulator'
 import FamilyCanvas from './pages/FamilyCanvas'
 import Patrimony from './pages/Patrimony'
+import Documents from './pages/Documents'
+import Checklist from './pages/Checklist'
+import ExportDossier from './pages/ExportDossier'
 import AdminPanel from './pages/AdminPanel'
 import Layout from './components/Layout'
 import AuthLayout from './components/AuthLayout'
@@ -30,6 +33,9 @@ export default function App() {
           <Route path="/tableau-de-bord" element={<Dashboard />} />
           <Route path="/canvas-familial" element={<FamilyCanvas />} />
           <Route path="/patrimoine" element={<Patrimony />} />
+          <Route path="/documents" element={<Documents />} />
+          <Route path="/checklist" element={<Checklist />} />
+          <Route path="/dossier" element={<ExportDossier />} />
           <Route path="/admin" element={<AdminPanel />} />
         </Route>
       </Route>

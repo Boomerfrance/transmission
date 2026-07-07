@@ -3,6 +3,9 @@ import {
   LayoutDashboard,
   Users,
   Landmark,
+  FileText,
+  CheckSquare,
+  FileDown,
   Settings,
   LogOut,
   Menu,
@@ -13,9 +16,12 @@ import { useAuth } from '../lib/AuthContext'
 
 const nav = [
   { to: '/tableau-de-bord', label: 'Tableau de bord', icon: LayoutDashboard },
-  { to: '/canvas-familial', label: 'Canvas familial', icon: Users },
   { to: '/patrimoine', label: 'Patrimoine', icon: Landmark },
-  { to: '/admin', label: 'Administration', icon: Settings },
+  { to: '/canvas-familial', label: 'Canvas familial', icon: Users },
+  { to: '/documents', label: 'Documents', icon: FileText },
+  { to: '/checklist', label: 'Checklist', icon: CheckSquare },
+  { to: '/dossier', label: 'Dossier Notaire', icon: FileDown },
+  { to: '/admin', label: 'Administration', icon: Settings, adminOnly: true },
 ]
 
 export default function Layout() {
@@ -70,7 +76,7 @@ export default function Layout() {
 
             {/* Nav */}
             <nav className="flex-1 px-3 py-4 space-y-1">
-              {nav.map(({ to, label, icon: Icon }) => {
+              {nav.filter((item) => !('adminOnly' in item && item.adminOnly) || user?.role === 'admin').map(({ to, label, icon: Icon }) => {
                 const active = pathname === to
                 return (
                   <Link

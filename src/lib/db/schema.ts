@@ -104,6 +104,44 @@ export const llmConfig = pgTable('llm_config', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
+// ── Documents ─────────────────────────────────────────
+
+export const documents = pgTable('documents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  familyId: uuid('family_id')
+    .references(() => families.id)
+    .notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  category: varchar('category', { length: 50 }).notNull(), // identite | patrimoine | juridique | fiscal | autre
+  status: varchar('status', { length: 50 }).notNull().default('a_fournir'), // a_fournir | en_cours | obtenu
+  notes: text('notes'),
+  fileName: varchar('file_name', { length: 255 }),
+  fileType: varchar('file_type', { length: 100 }),
+  fileSize: integer('file_size'),
+  uploadedBy: uuid('uploaded_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+// ── Checklist ─────────────────────────────────────────
+
+export const checklistItems = pgTable('checklist_items', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  familyId: uuid('family_id')
+    .references(() => families.id)
+    .notNull(),
+  title: varchar('title', { length: 500 }).notNull(),
+  description: text('description'),
+  category: varchar('category', { length: 50 }).notNull(), // documents | patrimoine | famille | juridique | fiscal
+  isCompleted: boolean('is_completed').notNull().default(false),
+  isDefault: boolean('is_default').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  completedAt: timestamp('completed_at'),
+  completedBy: uuid('completed_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
 // ── Conversations ─────────────────────────────────────
 
 export const conversations = pgTable('conversations', {

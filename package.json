@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -19,6 +18,7 @@
     "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.36.4",
     "jsonwebtoken": "^9.0.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
