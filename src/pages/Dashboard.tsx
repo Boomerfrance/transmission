@@ -242,10 +242,10 @@ export default function Dashboard() {
               Vous pouvez poser vos questions sur la transmission patrimoniale à notre assistant.
               Il vous guidera avec des informations générales adaptées à votre situation.
             </p>
-            <button className="mt-3 text-sm font-medium text-gold-700 hover:text-gold-800 flex items-center gap-1">
+            <Link to="/assistant" className="mt-3 text-sm font-medium text-gold-700 hover:text-gold-800 flex items-center gap-1">
               Poser une question
               <ArrowRight size={14} />
-            </button>
+            </Link>
           </div>
         </div>
       </div>

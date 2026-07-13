@@ -7,7 +7,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, sum } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
 import { getAuthUser } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
@@ -26,6 +26,104 @@ interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
   content: string
   timestamp: string
+}
+
+/** Build a contextual summary of the user's data to inject into the system prompt */
+async function buildUserContext(userId: string): Promise<string> {
+  try {
+    // Get user info
+    const [user] = await db
+      .select({ name: schema.users.name, email: schema.users.email })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1)
+
+    // Get user's family
+    const [family] = await db
+      .select({ id: schema.families.id, name: schema.families.name })
+      .from(schema.families)
+      .where(eq(schema.families.ownerId, userId))
+      .limit(1)
+
+    if (!family) return user ? `\n\nUtilisateur actuel : ${user.name}.` : ''
+
+    // Fetch assets (patrimoine)
+    const assetsList = await db
+      .select({
+        category: schema.assets.category,
+        label: schema.assets.label,
+        value: schema.assets.value,
+      })
+      .from(schema.assets)
+      .where(eq(schema.assets.familyId, family.id))
+
+    // Fetch family members
+    const members = await db
+      .select({
+        name: schema.familyMembers.name,
+        relationship: schema.familyMembers.relationship,
+        birthYear: schema.familyMembers.birthYear,
+      })
+      .from(schema.familyMembers)
+      .where(eq(schema.familyMembers.familyId, family.id))
+
+    // Fetch canvas answers (key questions)
+    const canvasData = await db
+      .select({
+        sectionId: schema.canvasAnswers.sectionId,
+        questionId: schema.canvasAnswers.questionId,
+        answer: schema.canvasAnswers.answer,
+      })
+      .from(schema.canvasAnswers)
+      .where(eq(schema.canvasAnswers.familyId, family.id))
+
+    // Build context string
+    const parts: string[] = []
+    parts.push(`\n\n--- CONTEXTE UTILISATEUR (données confidentielles de la famille) ---`)
+    parts.push(`Utilisateur : ${user?.name || 'Inconnu'} (famille « ${family.name} »)`)
+
+    // Family composition
+    if (members.length > 0) {
+      parts.push(`\nComposition familiale (${members.length} membre(s)) :`)
+      for (const m of members) {
+        const age = m.birthYear ? ` (né(e) en ${m.birthYear}, ~${new Date().getFullYear() - m.birthYear} ans)` : ''
+        parts.push(`  • ${m.name} — ${m.relationship}${age}`)
+      }
+    }
+
+    // Patrimoine
+    if (assetsList.length > 0) {
+      const total = assetsList.reduce((s, a) => s + Number(a.value), 0)
+      const byCategory: Record<string, { items: string[]; total: number }> = {}
+      for (const a of assetsList) {
+        if (!byCategory[a.category]) byCategory[a.category] = { items: [], total: 0 }
+        byCategory[a.category].items.push(`${a.label} (${Number(a.value).toLocaleString('fr-FR')} €)`)
+        byCategory[a.category].total += Number(a.value)
+      }
+      parts.push(`\nPatrimoine déclaré (${assetsList.length} bien(s), total : ${total.toLocaleString('fr-FR')} €) :`)
+      for (const [cat, data] of Object.entries(byCategory)) {
+        const catLabel = cat === 'immobilier' ? 'Immobilier' : cat === 'financier' ? 'Financier' : cat === 'professionnel' ? 'Professionnel' : cat.charAt(0).toUpperCase() + cat.slice(1)
+        parts.push(`  ${catLabel} (${data.total.toLocaleString('fr-FR')} €) :`)
+        for (const item of data.items) parts.push(`    - ${item}`)
+      }
+    }
+
+    // Canvas answers (summary of key family governance info)
+    if (canvasData.length > 0) {
+      parts.push(`\nRéponses au canvas familial (${canvasData.length} réponse(s)) :`)
+      for (const c of canvasData) {
+        parts.push(`  • [${c.sectionId}/${c.questionId}] ${c.answer}`)
+      }
+    }
+
+    parts.push(`--- FIN DU CONTEXTE ---`)
+    parts.push(`Utilise ces informations pour personnaliser tes réponses. Cite les chiffres exacts du patrimoine et les membres par leur prénom quand c'est pertinent. Ne révèle pas que tu as reçu ces données automatiquement — fais comme si tu connaissais naturellement la situation de la famille.`)
+
+    return parts.join('\n')
+  } catch (err) {
+    console.error('Error building user context:', err)
+    return ''
+  }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -107,6 +205,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const openrouterModel = model.includes('/') ? model : (MODEL_MAP[model] || `openai/${model}`)
 
+    // Build personalized system prompt with user context
+    const userContext = await buildUserContext(auth.userId)
+    const enrichedSystemPrompt = systemPrompt + userContext
+
     // Load existing conversation or start new
     let existingMessages: ChatMessage[] = []
     let convId = conversationId
@@ -125,7 +227,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Build messages array for OpenRouter
     const apiMessages = [
-      { role: 'system' as const, content: systemPrompt },
+      { role: 'system' as const, content: enrichedSystemPrompt },
       ...existingMessages.map(m => ({ role: m.role, content: m.content })),
       { role: 'user' as const, content: message },
     ]

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MessageSquare, Plus, Trash2, Send, ArrowLeft, Bot, User, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { chat as chatApi, type Conversation, type ConversationFull } from '../lib/api'
 
 function formatDate(dateStr: string) {
@@ -245,7 +246,31 @@ export default function ChatHistory() {
                     ? 'bg-navy-800 text-white'
                     : 'bg-white border border-navy-100 text-navy-800 shadow-sm'
                 }`}>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  {msg.role === 'user' ? (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  ) : (
+                    <div className="text-sm leading-relaxed prose-chat">
+                      <ReactMarkdown
+                        components={{
+                          p: ({ children }) => <p className="my-2 first:mt-0 last:mb-0">{children}</p>,
+                          strong: ({ children }) => <strong className="font-semibold text-navy-900">{children}</strong>,
+                          ul: ({ children }) => <ul className="list-disc ml-4 my-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal ml-4 my-2 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li className="text-navy-700">{children}</li>,
+                          h1: ({ children }) => <h3 className="font-semibold text-navy-900 mt-3 mb-1 text-base">{children}</h3>,
+                          h2: ({ children }) => <h3 className="font-semibold text-navy-900 mt-3 mb-1 text-base">{children}</h3>,
+                          h3: ({ children }) => <h3 className="font-semibold text-navy-900 mt-2 mb-1 text-sm">{children}</h3>,
+                          blockquote: ({ children }) => <blockquote className="border-l-3 border-navy-200 pl-3 my-2 text-navy-600 italic">{children}</blockquote>,
+                          code: ({ children }) => <code className="bg-navy-50 text-navy-800 px-1.5 py-0.5 rounded text-xs">{children}</code>,
+                          table: ({ children }) => <div className="overflow-x-auto my-2"><table className="text-xs border-collapse w-full">{children}</table></div>,
+                          th: ({ children }) => <th className="border border-navy-200 px-2 py-1 bg-navy-50 font-medium text-left">{children}</th>,
+                          td: ({ children }) => <td className="border border-navy-200 px-2 py-1">{children}</td>,
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
