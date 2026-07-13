@@ -5,9 +5,9 @@ export default function AuthLayout() {
     <div className="min-h-screen bg-gradient-to-br from-navy-50 via-white to-gold-50/30 flex flex-col items-center justify-center px-4 py-12">
       <Link to="/" className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center shadow-md">
-          <span className="text-white font-serif font-bold text-lg">T</span>
+          <span className="text-white font-serif font-bold text-lg">LF</span>
         </div>
-        <span className="font-serif font-bold text-navy-800 text-xl">Transmission</span>
+        <span className="font-serif font-bold text-navy-800 text-xl">Lègue Facile</span>
       </Link>
       <div className="w-full max-w-md">
         <Outlet />

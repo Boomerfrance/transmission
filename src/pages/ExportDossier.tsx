@@ -274,14 +274,14 @@ export default function ExportDossier() {
     doc.setFontSize(8)
     doc.setTextColor(150, 150, 150)
     doc.text(
-      'Transmission — Plateforme de gouvernance familiale patrimoniale — transmission.fr',
+      'Lègue Facile — Plateforme de gouvernance familiale patrimoniale — transmission.fr',
       pageWidth / 2,
       290,
       { align: 'center' }
     )
 
     // Download
-    doc.save(`Dossier_Transmission_${preview.family.name.replace(/\s+/g, '_')}.pdf`)
+    doc.save(`Dossier_LegueFacile_${preview.family.name.replace(/\s+/g, '_')}.pdf`)
   }
 
   return (

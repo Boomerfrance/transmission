@@ -195,7 +195,7 @@ export default function ChatHistory() {
             <h3 className="font-semibold text-navy-800 text-sm">
               {activeConv?.title || 'Nouvelle conversation'}
             </h3>
-            <p className="text-xs text-navy-400">Assistant IA Transmission</p>
+            <p className="text-xs text-navy-400">Assistant IA Lègue Facile</p>
           </div>
         </div>
 
@@ -206,7 +206,7 @@ export default function ChatHistory() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center mx-auto mb-4 shadow-lg">
                 <Bot size={32} className="text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-navy-800 mb-2">Assistant Transmission</h3>
+              <h3 className="text-lg font-semibold text-navy-800 mb-2">Assistant Lègue Facile</h3>
               <p className="text-sm text-navy-500 max-w-md mx-auto">
                 Posez-moi vos questions sur la transmission patrimoniale, la fiscalité successorale,
                 ou la préparation de votre dossier notaire.

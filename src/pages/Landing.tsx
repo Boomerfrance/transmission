@@ -19,9 +19,9 @@ export default function Landing() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-                <span className="text-white font-serif font-bold text-sm">T</span>
+                <span className="text-white font-serif font-bold text-sm">LF</span>
               </div>
-              <span className="font-serif font-bold text-navy-800 text-lg">Transmission</span>
+              <span className="font-serif font-bold text-navy-800 text-lg">Lègue Facile</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <a href="#fonctionnalites" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Fonctionnalités</a>
@@ -72,7 +72,7 @@ export default function Landing() {
 
             <p className="text-lg sm:text-xl text-navy-500 leading-relaxed mb-8 max-w-2xl">
               Anticipez, organisez et alignez votre famille avant d'aller chez le notaire.
-              Transmission vous guide pas à pas pour préparer sereinement l'avenir de votre patrimoine.
+              Lègue Facile vous guide pas à pas pour préparer sereinement l'avenir de votre patrimoine.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-12">
@@ -273,12 +273,12 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-                <span className="text-white font-serif font-bold text-xs">T</span>
+                <span className="text-white font-serif font-bold text-xs">LF</span>
               </div>
-              <span className="font-serif font-semibold text-navy-700">Transmission</span>
+              <span className="font-serif font-semibold text-navy-700">Lègue Facile</span>
             </div>
             <p className="text-sm text-navy-400">
-              © 2026 Transmission. Plateforme d'aide à la préparation — ne constitue pas un conseil juridique ou fiscal.
+              © 2026 Lègue Facile. Plateforme d'aide à la préparation — ne constitue pas un conseil juridique ou fiscal.
             </p>
           </div>
         </div>

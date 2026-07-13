@@ -105,9 +105,9 @@ export default function Layout() {
       <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-navy-100">
         <Link to="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-            <span className="text-white font-serif font-bold text-sm">T</span>
+            <span className="text-white font-serif font-bold text-sm">LF</span>
           </div>
-          <span className="font-serif font-bold text-navy-800">Transmission</span>
+          <span className="font-serif font-bold text-navy-800">Lègue Facile</span>
         </Link>
         <div className="flex items-center gap-2">
           {/* Mobile notification bell */}
@@ -138,10 +138,10 @@ export default function Layout() {
             <div className="hidden lg:flex items-center justify-between px-6 py-5 border-b border-navy-100">
               <Link to="/" className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center shadow-sm">
-                  <span className="text-white font-serif font-bold">T</span>
+                  <span className="text-white font-serif font-bold">LF</span>
                 </div>
                 <div>
-                  <div className="font-serif font-bold text-navy-800 text-lg leading-tight">Transmission</div>
+                  <div className="font-serif font-bold text-navy-800 text-lg leading-tight">Lègue Facile</div>
                   <div className="text-[11px] text-navy-400 tracking-wide uppercase">Gouvernance familiale</div>
                 </div>
               </Link>

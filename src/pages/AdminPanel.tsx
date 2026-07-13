@@ -30,7 +30,7 @@ const MODEL_OPTIONS = [
   { value: 'google/gemini-2.5-pro-preview', label: 'Gemini 2.5 Pro', provider: 'Google', desc: 'Performant sur les longues conversations' },
 ]
 
-const DEFAULT_SYSTEM_PROMPT = `Tu es l'assistant IA de Transmission, une plateforme de gouvernance familiale patrimoniale.
+const DEFAULT_SYSTEM_PROMPT = `Tu es l'assistant IA de Lègue Facile, une plateforme de gouvernance familiale patrimoniale.
 
 Ton rôle :
 - Aider les familles à comprendre les enjeux de la transmission patrimoniale en France

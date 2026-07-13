@@ -283,9 +283,9 @@ export default function Simulator() {
           <div className="flex items-center justify-between h-14">
             <Link to="/" className="flex items-center gap-2 group">
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-                <span className="text-white font-serif font-bold text-xs">T</span>
+                <span className="text-white font-serif font-bold text-xs">LF</span>
               </div>
-              <span className="font-serif font-semibold text-navy-800 text-[15px] tracking-tight">Transmission</span>
+              <span className="font-serif font-semibold text-navy-800 text-[15px] tracking-tight">Lègue Facile</span>
             </Link>
             <Link
               to="/"
