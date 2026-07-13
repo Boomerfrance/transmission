@@ -8,10 +8,14 @@ import {
   ChevronDown,
   ChevronUp,
   Lightbulb,
+  Download,
+  Landmark,
 } from 'lucide-react'
+import { assets as assetsApi, type Asset } from '../lib/api'
 
 /* ───────────── TYPES ───────────── */
 
+type SimMode = 'succession' | 'donation'
 type HeirType = 'conjoint' | 'enfant' | 'frere_soeur' | 'neveu_niece' | 'autre'
 type ConjointOption = 'pleine_propriete' | 'usufruit'
 
@@ -115,6 +119,28 @@ function getUsufruitRate(age: number): number {
   return 0.10
 }
 
+/* ───────────── DONATION TAX ───────────── */
+
+const DONATION_ABATTEMENTS: Record<HeirType, number> = {
+  conjoint: 80_724,
+  enfant: 100_000,
+  frere_soeur: 15_932,
+  neveu_niece: 7_967,
+  autre: 1_594,
+}
+
+function computeDonationTax(montant: number, type: HeirType) {
+  const abattement = DONATION_ABATTEMENTS[type]
+  const assietteTaxable = Math.max(0, montant - abattement)
+  let droits: number
+  if (type === 'conjoint') droits = applyBareme(assietteTaxable, BAREME_LIGNE_DIRECTE)
+  else if (type === 'enfant') droits = applyBareme(assietteTaxable, BAREME_LIGNE_DIRECTE)
+  else if (type === 'frere_soeur') droits = applyBareme(assietteTaxable, BAREME_FRERE_SOEUR)
+  else if (type === 'neveu_niece') droits = Math.round(assietteTaxable * 0.55)
+  else droits = Math.round(assietteTaxable * 0.60)
+  return { abattement, assietteTaxable, droits, tauxEffectif: montant > 0 ? (droits / montant) * 100 : 0 }
+}
+
 /* ───────────── FORMAT HELPERS ───────────── */
 
 function fmt(n: number): string {
@@ -175,6 +201,7 @@ const COLORS = [
 /* ───────────── COMPONENT ───────────── */
 
 export default function Simulator() {
+  const [mode, setMode] = useState<SimMode>('succession')
   const [montantRaw, setMontantRaw] = useState('')
   const [hasConjoint, setHasConjoint] = useState(false)
   const [nbEnfants, setNbEnfants] = useState(0)
@@ -183,9 +210,34 @@ export default function Simulator() {
   const [otherHeirs, setOtherHeirs] = useState<OtherHeir[]>([])
   const [showBaremes, setShowBaremes] = useState(false)
   const [computed, setComputed] = useState(false)
+  // Donation-specific
+  const [donationType, setDonationType] = useState<HeirType>('enfant')
+  const [donationCount, setDonationCount] = useState(1)
+  // Patrimoine link
+  const [patrimoineTotal, setPatrimoineTotal] = useState<number | null>(null)
+  const [loadingPatrimoine, setLoadingPatrimoine] = useState(false)
 
   const resultsRef = useRef<HTMLDivElement>(null)
   const montant = parseMontant(montantRaw)
+
+  // Load patrimoine total from user's assets
+  const loadPatrimoine = async () => {
+    setLoadingPatrimoine(true)
+    try {
+      const data = await assetsApi.list()
+      const total = data.reduce((s: number, a: Asset) => s + Number(a.value), 0)
+      setPatrimoineTotal(total)
+      if (total > 0) {
+        setMontantRaw(fmtNum(total))
+        setComputed(false)
+      }
+    } catch {
+      // Not logged in or no assets — silently ignore
+      setPatrimoineTotal(null)
+    } finally {
+      setLoadingPatrimoine(false)
+    }
+  }
 
   function addOtherHeir() {
     setOtherHeirs(prev => [...prev, { id: crypto.randomUUID(), type: 'frere_soeur', count: 1 }])
@@ -263,10 +315,22 @@ export default function Simulator() {
     return out
   }, [computed, montant, hasConjoint, nbEnfants, conjointOption, conjointAge, otherHeirs])
 
-  const totalDroits = results.reduce((s, r) => s + r.droitsTotal, 0)
+  /* ── donation results ── */
+  const donationResults = useMemo<HeirResult[]>(() => {
+    if (!computed || montant <= 0 || mode !== 'donation' || donationCount <= 0) return []
+    const partPer = montant / donationCount
+    const t = computeDonationTax(partPer, donationType)
+    return [{
+      label: donationCount === 1 ? HEIR_LABELS[donationType] : `${HEIR_LABELS[donationType]} ×${donationCount}`,
+      type: donationType, part: partPer, count: donationCount, ...t, droitsTotal: t.droits * donationCount,
+    }]
+  }, [computed, montant, mode, donationType, donationCount])
+
+  const activeResults = mode === 'succession' ? results : donationResults
+  const totalDroits = activeResults.reduce((s, r) => s + r.droitsTotal, 0)
   const netTransmis = montant - totalDroits
   const tauxEffectifGlobal = montant > 0 ? (totalDroits / montant) * 100 : 0
-  const hasAnyHeirs = hasConjoint || nbEnfants > 0 || otherHeirs.length > 0
+  const hasAnyHeirs = mode === 'donation' ? donationCount > 0 : (hasConjoint || nbEnfants > 0 || otherHeirs.length > 0)
 
   const animatedDroits = useAnimatedNumber(computed ? totalDroits : 0)
   const animatedNet = useAnimatedNumber(computed ? netTransmis : 0)
@@ -306,14 +370,44 @@ export default function Simulator() {
 
       <div className="max-w-3xl mx-auto px-5 sm:px-8 pt-16 pb-24">
         {/* ── Hero ── */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10">
           <h1 className="font-serif text-[2.5rem] sm:text-[3.25rem] text-navy-900 tracking-[-0.03em] leading-[1.08] mb-4">
-            Simulateur de succession
+            {mode === 'succession' ? 'Simulateur de succession' : 'Simulateur de donation'}
           </h1>
           <p className="text-[15px] text-navy-400 leading-relaxed max-w-md mx-auto">
-            Estimez les droits de succession selon votre situation familiale.
-            Conjoint, enfants, autres héritiers — comme dans la réalité.
+            {mode === 'succession'
+              ? 'Estimez les droits de succession selon votre situation familiale.'
+              : 'Calculez les droits de donation pour anticiper votre transmission.'}
           </p>
+        </div>
+
+        {/* ── Mode toggle ── */}
+        <div className="relative flex bg-navy-100/70 rounded-xl p-[3px] mb-12 max-w-md mx-auto">
+          <div
+            className="absolute top-[3px] bottom-[3px] rounded-[9px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06),0_0.5px_1px_rgba(0,0,0,0.04)] transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]"
+            style={{
+              width: 'calc(50% - 3px)',
+              left: mode === 'succession' ? '3px' : 'calc(50%)',
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => { setMode('succession'); setComputed(false) }}
+            className={`relative z-10 flex-1 py-2.5 text-[13px] font-medium rounded-[9px] transition-colors duration-200 ${
+              mode === 'succession' ? 'text-navy-900' : 'text-navy-400'
+            }`}
+          >
+            Succession
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('donation'); setComputed(false) }}
+            className={`relative z-10 flex-1 py-2.5 text-[13px] font-medium rounded-[9px] transition-colors duration-200 ${
+              mode === 'donation' ? 'text-navy-900' : 'text-navy-400'
+            }`}
+          >
+            Donation
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -334,16 +428,79 @@ export default function Simulator() {
               />
               <span className="absolute right-6 top-1/2 -translate-y-1/2 text-navy-300 text-base font-medium">€</span>
             </div>
-            <p className="mt-2.5 text-[12px] text-navy-300">
-              Valeur nette de l'ensemble du patrimoine après déduction des dettes
-            </p>
+            <div className="flex items-center gap-3 mt-2.5">
+              <p className="text-[12px] text-navy-300 flex-1">
+                {mode === 'succession'
+                  ? 'Valeur nette de l\'ensemble du patrimoine après déduction des dettes'
+                  : 'Montant total que vous souhaitez donner'}
+              </p>
+              <button
+                type="button"
+                onClick={loadPatrimoine}
+                disabled={loadingPatrimoine}
+                className="flex items-center gap-1.5 text-[12px] text-navy-500 hover:text-navy-700 bg-navy-50 hover:bg-navy-100 px-3 py-1.5 rounded-lg transition-all duration-200 flex-shrink-0 disabled:opacity-50"
+              >
+                <Landmark size={12} />
+                {loadingPatrimoine ? 'Chargement…' : patrimoineTotal !== null ? 'Actualiser' : 'Utiliser mon patrimoine'}
+              </button>
+            </div>
           </section>
 
-          {/* ── Héritiers ── */}
+          {/* ── Héritiers / Donataires ── */}
           <section className="bg-white rounded-3xl border border-navy-200/50 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_16px_rgba(0,0,0,0.04)] p-7 sm:p-9 mb-10">
             <h2 className="text-[11px] font-semibold text-navy-400 uppercase tracking-[0.1em] mb-8">
-              Héritiers
+              {mode === 'succession' ? 'Héritiers' : 'Donataires'}
             </h2>
+
+            {/* ── DONATION MODE ── */}
+            {mode === 'donation' && (
+              <div className="space-y-5">
+                <div>
+                  <div className="text-[13px] text-navy-500 mb-3">À qui donnez-vous ?</div>
+                  <select
+                    value={donationType}
+                    onChange={e => { setDonationType(e.target.value as HeirType); setComputed(false) }}
+                    className="w-full h-12 px-4 bg-navy-50/60 rounded-xl text-[14px] text-navy-700 border border-navy-200/60 focus:border-navy-400/80 focus:bg-white outline-none transition-all duration-200 appearance-none cursor-pointer"
+                  >
+                    <option value="enfant">Enfant(s)</option>
+                    <option value="conjoint">Conjoint / Partenaire PACS</option>
+                    <option value="frere_soeur">Frère / Sœur</option>
+                    <option value="neveu_niece">Neveu / Nièce</option>
+                    <option value="autre">Autre personne</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between py-4">
+                  <div>
+                    <div className="text-[15px] font-medium text-navy-900">Nombre de donataires</div>
+                    <div className="text-[12px] text-navy-300 mt-1">
+                      Abattement : {donationType === 'conjoint' ? fmtNum(80_724) : fmtNum(DONATION_ABATTEMENTS[donationType])} € par personne
+                      {donationType === 'enfant' && ' (renouvelable tous les 15 ans)'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => { setDonationCount(Math.max(1, donationCount - 1)); setComputed(false) }} disabled={donationCount <= 1}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-navy-400 border border-navy-200/80 hover:border-navy-300 active:scale-[0.92] transition-all duration-150 disabled:opacity-25 disabled:pointer-events-none">
+                      <span className="text-lg leading-none">−</span>
+                    </button>
+                    <span className="w-6 text-center text-[17px] font-semibold text-navy-900 tabular-nums select-none">{donationCount}</span>
+                    <button type="button" onClick={() => { setDonationCount(donationCount + 1); setComputed(false) }}
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-navy-400 border border-navy-200/80 hover:border-navy-300 active:scale-[0.92] transition-all duration-150">
+                      <span className="text-lg leading-none">+</span>
+                    </button>
+                  </div>
+                </div>
+                {donationType === 'enfant' && donationCount > 0 && montant > 0 && (
+                  <div className="bg-emerald-50/60 rounded-xl border border-emerald-200/40 p-4 text-[13px] text-emerald-700">
+                    <Lightbulb size={14} className="inline mr-1.5 text-emerald-500" />
+                    En renouvelant cette donation dans 15 ans, vous transmettrez <strong>{fmtNum(montant * 2)}&nbsp;€</strong> au total en franchise d'abattement ({fmtNum(100_000)}&nbsp;€ × {donationCount} × 2).
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── SUCCESSION MODE ── */}
+            {mode === 'succession' && (<>
+            
 
             {/* Conjoint */}
             <div className="flex items-center justify-between py-5 border-b border-navy-100">
@@ -525,6 +682,7 @@ export default function Simulator() {
                 Ajouter un héritier
               </button>
             </div>
+            </>)}
           </section>
 
           {/* ── CTA ── */}
@@ -533,18 +691,18 @@ export default function Simulator() {
             disabled={montant <= 0 || !hasAnyHeirs}
             className="w-full h-14 bg-navy-900 text-white rounded-2xl text-[14px] font-semibold tracking-[0.01em] flex items-center justify-center gap-2 hover:bg-navy-800 active:scale-[0.99] transition-all duration-200 disabled:opacity-20 disabled:pointer-events-none shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(24,27,37,0.12)]"
           >
-            Calculer les droits
+            {mode === 'succession' ? 'Calculer les droits de succession' : 'Calculer les droits de donation'}
             <ArrowRight size={15} />
           </button>
         </form>
 
         {/* ══════════════ RESULTS ══════════════ */}
-        {computed && results.length > 0 && (
+        {computed && activeResults.length > 0 && (
           <div ref={resultsRef} className="mt-16">
             {/* Hero numbers */}
             <div className="text-center mb-12">
               <div className="text-[11px] font-medium text-navy-400 uppercase tracking-[0.1em] mb-3">
-                Total des droits de succession
+                {mode === 'succession' ? 'Total des droits de succession' : 'Total des droits de donation'}
               </div>
               <div className="font-serif text-[3rem] sm:text-[4rem] text-navy-900 tracking-[-0.03em] leading-none tabular-nums">
                 {fmtNum(animatedDroits)}
@@ -569,7 +727,7 @@ export default function Simulator() {
                 Répartition
               </div>
               <div className="flex rounded-lg overflow-hidden h-2.5 bg-navy-100">
-                {results.filter(r => r.part * r.count > 0).map((r, i) => {
+                {activeResults.filter(r => r.part * r.count > 0).map((r, i) => {
                   const pct = ((r.part * r.count) / montant) * 100
                   return (
                     <div
@@ -585,7 +743,7 @@ export default function Simulator() {
                 })}
               </div>
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 mt-4">
-                {results.filter(r => r.part * r.count > 0).map((r, i) => {
+                {activeResults.filter(r => r.part * r.count > 0).map((r, i) => {
                   const pct = ((r.part * r.count) / montant) * 100
                   return (
                     <div key={i} className="flex items-center gap-2 text-[12px] text-navy-500">
@@ -601,7 +759,7 @@ export default function Simulator() {
             </div>
 
             {/* Detail cards */}
-            {results.map((r, i) => (
+            {activeResults.map((r, i) => (
               <div
                 key={i}
                 className="bg-white rounded-2xl border border-navy-200/40 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_4px_16px_rgba(0,0,0,0.04)] p-6 sm:p-8 mb-3"
@@ -738,23 +896,44 @@ export default function Simulator() {
                 </span>
               </div>
               <div className="space-y-3.5 text-[13px] text-navy-600 leading-relaxed">
-                {nbEnfants > 0 && (
-                  <p>
-                    <span className="font-medium text-navy-800">Donations anticipées</span> — L'abattement de {fmtNum(100_000)} € par enfant se renouvelle tous les 15 ans. En échelonnant vos donations, vous transmettez {fmtNum(200_000 * nbEnfants)} € en franchise de droits.
-                  </p>
-                )}
-                {hasConjoint && nbEnfants > 0 && (
-                  <p>
-                    <span className="font-medium text-navy-800">Assurance-vie</span> — Chaque bénéficiaire profite d'un abattement supplémentaire de {fmtNum(152_500)} € sur les primes versées avant 70 ans (art. 990 I CGI).
-                  </p>
-                )}
-                <p>
-                  <span className="font-medium text-navy-800">Démembrement</span> — Donner la nue-propriété d'un bien réduit l'assiette taxable selon l'âge du donateur.
-                </p>
-                {montant > 500_000 && (
-                  <p>
-                    <span className="font-medium text-navy-800">Pacte Dutreil</span> — Transmission d'entreprise : exonération jusqu'à 75% de la valeur des titres.
-                  </p>
+                {mode === 'donation' ? (
+                  <>
+                    {donationType === 'enfant' && (
+                      <p>
+                        <span className="font-medium text-navy-800">Renouvellement tous les 15 ans</span> — L'abattement de {fmtNum(100_000)} € par enfant se renouvelle. Planifiez vos donations pour maximiser les abattements.
+                      </p>
+                    )}
+                    <p>
+                      <span className="font-medium text-navy-800">Don familial d'argent</span> — En plus de l'abattement classique, chaque enfant/petit-enfant peut recevoir {fmtNum(31_865)} € en franchise de droits si le donateur a moins de 80 ans (art. 790 G CGI).
+                    </p>
+                    <p>
+                      <span className="font-medium text-navy-800">Donation en nue-propriété</span> — Donner la nue-propriété d'un bien en conservant l'usufruit réduit la base taxable de 40 à 90% selon votre âge.
+                    </p>
+                    <p>
+                      <span className="font-medium text-navy-800">Comparer avec la succession</span> — Basculez en mode « Succession » pour voir la différence de droits si vous ne faites rien.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    {(nbEnfants > 0 || hasConjoint) && (
+                      <p>
+                        <span className="font-medium text-navy-800">Donations anticipées</span> — L'abattement de {fmtNum(100_000)} € par enfant se renouvelle tous les 15 ans. <button type="button" onClick={() => { setMode('donation'); setComputed(false) }} className="underline text-navy-800 hover:text-navy-600">Simuler une donation →</button>
+                      </p>
+                    )}
+                    {hasConjoint && nbEnfants > 0 && (
+                      <p>
+                        <span className="font-medium text-navy-800">Assurance-vie</span> — Chaque bénéficiaire profite d'un abattement supplémentaire de {fmtNum(152_500)} € sur les primes versées avant 70 ans (art. 990 I CGI).
+                      </p>
+                    )}
+                    <p>
+                      <span className="font-medium text-navy-800">Démembrement</span> — Donner la nue-propriété d'un bien réduit l'assiette taxable selon l'âge du donateur.
+                    </p>
+                    {montant > 500_000 && (
+                      <p>
+                        <span className="font-medium text-navy-800">Pacte Dutreil</span> — Transmission d'entreprise : exonération jusqu'à 75% de la valeur des titres.
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
