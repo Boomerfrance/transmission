@@ -18,10 +18,10 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-                <span className="text-white font-serif font-bold text-sm">LF</span>
+              <div className="w-8 h-8 rounded-lg bg-navy-900 flex items-center justify-center">
+                <span className="text-white text-[11px] font-semibold tracking-tight">LF</span>
               </div>
-              <span className="font-serif font-bold text-navy-800 text-lg">Lègue Facile</span>
+              <span className="text-[16px] font-medium text-navy-800 tracking-[-0.01em]">Lègue Facile</span>
             </Link>
             <div className="hidden md:flex items-center gap-8">
               <a href="#fonctionnalites" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Fonctionnalités</a>
@@ -222,7 +222,7 @@ export default function Landing() {
               },
             ].map(({ step, title, desc }) => (
               <div key={step} className="relative">
-                <div className="text-5xl font-serif font-bold text-navy-200/60 mb-3">{step}</div>
+                <div className="text-5xl font-serif text-navy-200/60 mb-3">{step}</div>
                 <h3 className="font-semibold text-navy-800 text-lg mb-2">{title}</h3>
                 <p className="text-navy-500 text-sm leading-relaxed">{desc}</p>
               </div>
@@ -272,10 +272,10 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-navy-800 to-navy-600 flex items-center justify-center">
-                <span className="text-white font-serif font-bold text-xs">LF</span>
+              <div className="w-7 h-7 rounded-lg bg-navy-900 flex items-center justify-center">
+                <span className="text-white text-[10px] font-semibold tracking-tight">LF</span>
               </div>
-              <span className="font-serif font-semibold text-navy-700">Lègue Facile</span>
+              <span className="text-[14px] font-medium text-navy-700">Lègue Facile</span>
             </div>
             <p className="text-sm text-navy-400">
               © 2026 Lègue Facile. Plateforme d'aide à la préparation — ne constitue pas un conseil juridique ou fiscal.

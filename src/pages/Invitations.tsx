@@ -94,7 +94,7 @@ export default function Invitations() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-serif font-bold text-navy-800 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl font-serif text-navy-800 flex items-center gap-3">
           <UserPlus className="text-gold-500" size={28} />
           Invitations Famille
         </h1>
