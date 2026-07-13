@@ -15,6 +15,8 @@ import Invitations from './pages/Invitations'
 import AdminPanel from './pages/AdminPanel'
 import Blog from './pages/Blog'
 import BlogArticle from './pages/BlogArticle'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Layout from './components/Layout'
 import AuthLayout from './components/AuthLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -32,6 +34,8 @@ export default function App() {
       <Route element={<AuthLayout />}>
         <Route path="/connexion" element={<Login />} />
         <Route path="/inscription" element={<Signup />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+        <Route path="/reinitialiser-mot-de-passe" element={<ResetPassword />} />
       </Route>
 
       {/* App (authenticated) */}

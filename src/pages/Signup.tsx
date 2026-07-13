@@ -68,6 +68,21 @@ export default function Signup() {
             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="8 caractères minimum" required
               className="w-full pl-10 pr-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500/20 focus:border-navy-400 transition-colors" />
           </div>
+          {password.length > 0 && (() => {
+            const s = password.length < 8 ? 1 : password.length < 12 ? 2 : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 4 : 3
+            const labels = ['', 'Faible', 'Moyen', 'Bon', 'Fort']
+            const colors = ['', 'bg-red-400', 'bg-amber-400', 'bg-emerald-400', 'bg-emerald-500']
+            return (
+              <div className="mt-2">
+                <div className="flex gap-1 mb-1">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= s ? colors[s] : 'bg-navy-100'}`} />
+                  ))}
+                </div>
+                <p className={`text-xs ${s <= 1 ? 'text-red-500' : s === 2 ? 'text-amber-500' : 'text-emerald-500'}`}>{labels[s]}</p>
+              </div>
+            )
+          })()}
         </div>
         <button type="submit" disabled={loading}
           className="w-full flex items-center justify-center gap-2 bg-navy-800 text-white py-2.5 rounded-lg font-medium text-sm hover:bg-navy-700 transition-colors mt-6 group disabled:opacity-60">

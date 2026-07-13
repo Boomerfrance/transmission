@@ -58,7 +58,7 @@ export default function Login() {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-sm font-medium text-navy-700">Mot de passe</label>
-            <button type="button" className="text-xs text-navy-500 hover:text-navy-700">Oublié ?</button>
+            <Link to="/mot-de-passe-oublie" className="text-xs text-navy-500 hover:text-navy-700">Oublié ?</Link>
           </div>
           <div className="relative">
             <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />

@@ -50,6 +50,12 @@ export const auth = {
     request<AuthResponse>('/auth?action=signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
 
   me: () => request<{ user: AuthResponse['user']; family: { id: string; name: string } | null }>('/auth'),
+
+  forgotPassword: (email: string) =>
+    request<{ success: boolean; message: string; resetToken?: string; resetLink?: string }>('/auth?action=forgot', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    request<{ success: boolean; message: string }>('/auth?action=reset', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
 }
 
 // ── Assets ────────────────────────────────────────────

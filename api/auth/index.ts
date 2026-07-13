@@ -1,16 +1,22 @@
 /**
  * Consolidated Auth API
- * GET  /api/auth         — Get current user (me)
- * POST /api/auth?action=login  — Login
- * POST /api/auth?action=signup — Signup
+ * GET  /api/auth                    — Get current user (me)
+ * POST /api/auth?action=login       — Login
+ * POST /api/auth?action=signup      — Signup
+ * POST /api/auth?action=forgot      — Request password reset
+ * POST /api/auth?action=reset       — Reset password with token
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
 import { signToken, getAuthUser } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
+
+const JWT_SECRET = process.env.JWT_SECRET || 'transmission-dev-secret'
+const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (handleCors(req, res)) return
@@ -86,6 +92,84 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       console.error('Signup error:', err)
       return res.status(500).json({ error: 'Erreur serveur. Réessayez plus tard.' })
+    }
+  }
+
+  // POST action=forgot — request password reset
+  if (action === 'forgot') {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'Email requis.' })
+
+    try {
+      const [user] = await db
+        .select({ id: schema.users.id, email: schema.users.email, name: schema.users.name })
+        .from(schema.users)
+        .where(eq(schema.users.email, email))
+        .limit(1)
+
+      // Always return success (don't reveal if email exists)
+      if (!user) {
+        return res.status(200).json({ success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' })
+      }
+
+      // Generate a short-lived reset token (1 hour)
+      const resetToken = jwt.sign(
+        { userId: user.id, email: user.email, purpose: 'password_reset' },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+      )
+
+      const resetLink = `${APP_URL}/reinitialiser-mot-de-passe?token=${resetToken}`
+
+      // Log reset link (visible in Vercel logs for now; replace with email service later)
+      console.log(`[PASSWORD RESET] User: ${user.email}, Link: ${resetLink}`)
+
+      // TODO: Integrate email service (Resend, SendGrid, or Gmail API) to send resetLink
+      // For now the token is returned in the response for development purposes
+      return res.status(200).json({
+        success: true,
+        message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
+        // Include token in dev — remove in production when email service is integrated
+        ...(process.env.NODE_ENV !== 'production' ? { resetToken, resetLink } : {}),
+      })
+    } catch (err) {
+      console.error('Forgot password error:', err)
+      return res.status(500).json({ error: 'Erreur serveur.' })
+    }
+  }
+
+  // POST action=reset — reset password with token
+  if (action === 'reset') {
+    const { token, newPassword } = req.body
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token et nouveau mot de passe requis.' })
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères.' })
+    }
+
+    try {
+      const payload = jwt.verify(token, JWT_SECRET) as { userId: string; purpose: string }
+      if (payload.purpose !== 'password_reset') {
+        return res.status(400).json({ error: 'Token invalide.' })
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 12)
+      await db
+        .update(schema.users)
+        .set({ passwordHash, updatedAt: new Date() })
+        .where(eq(schema.users.id, payload.userId))
+
+      return res.status(200).json({ success: true, message: 'Mot de passe mis à jour avec succès.' })
+    } catch (err: any) {
+      if (err?.name === 'TokenExpiredError') {
+        return res.status(400).json({ error: 'Le lien a expiré. Demandez un nouveau lien de réinitialisation.' })
+      }
+      if (err?.name === 'JsonWebTokenError') {
+        return res.status(400).json({ error: 'Lien invalide.' })
+      }
+      console.error('Reset password error:', err)
+      return res.status(500).json({ error: 'Erreur serveur.' })
     }
   }
 
