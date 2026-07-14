@@ -14,6 +14,7 @@ interface AuthState {
   user: User | null
   familyId: string | null
   loading: boolean
+  error: string | null
   login: () => void
   signup: () => void
   logout: () => void
@@ -39,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (auth0Error) {
       console.error('[v0] Auth0 error:', auth0Error.message)
+      setError(
+        "La connexion avec Auth0 a échoué. Vérifiez que l'application Auth0 est de type « Single Page Application » et que l'URL de callback est autorisée.",
+      )
       const params = new URLSearchParams(window.location.search)
       if (params.has('code') || params.has('state')) {
         window.history.replaceState({}, document.title, window.location.pathname)
@@ -49,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [familyId, setFamilyId] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const didInit = useRef(false)
   const navigate = useNavigate()
   const location = useLocation()
@@ -88,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (err) {
           console.error('Auth0 sync error:', err)
+          setError("Échec de la synchronisation du compte après connexion Auth0.")
         }
       }
 
@@ -107,12 +113,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearToken()
     setUser(null)
     setFamilyId(null)
+    setError(null)
     didInit.current = false
     auth0Logout({ logoutParams: { returnTo: window.location.origin } })
   }, [auth0Logout])
 
   return (
-    <AuthContext.Provider value={{ user, familyId, loading: auth0Loading || !ready, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, familyId, loading: auth0Loading || !ready, error, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   )

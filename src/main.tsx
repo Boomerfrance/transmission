@@ -34,6 +34,11 @@ createRoot(document.getElementById('root')!).render(
         redirect_uri: CANONICAL_ORIGIN,
       }}
       cacheLocation="localstorage"
+      onRedirectCallback={() => {
+        // Keep the path but drop the ?code=&state= query params so a page
+        // refresh never re-attempts a stale (already-consumed) authorization code.
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }}
     >
       <BrowserRouter>
         <AuthProvider>
