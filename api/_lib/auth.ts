@@ -8,8 +8,11 @@ import crypto from 'crypto'
 import type { VercelRequest } from '@vercel/node'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'transmission-dev-secret'
-const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN || ''
-const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID || ''
+// Auth0 domain and client ID are public identifiers (not secrets). We fall back
+// to the same values the frontend uses (see src/main.tsx) so token verification
+// works even when the AUTH0_* env vars are not set on the backend.
+const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN || 'icfg-brjd2g4anznlytomhw6ogwig.us.auth0.com'
+const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID || '5LLCbqAdnnzYsgtvMKvTbOQmR7qUrqXh'
 
 export interface JwtPayload {
   userId: string
