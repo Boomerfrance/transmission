@@ -30,7 +30,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loginWithRedirect,
     logout: auth0Logout,
     getIdTokenClaims,
+    error: auth0Error,
   } = useAuth0()
+
+  // Surface Auth0 callback errors instead of failing silently. If the SDK errored
+  // while handling the redirect (e.g. "Invalid state"), the code/state params can
+  // get stuck in the URL — strip them so the user isn't left on a broken URL.
+  useEffect(() => {
+    if (auth0Error) {
+      console.error('[v0] Auth0 error:', auth0Error.message)
+      const params = new URLSearchParams(window.location.search)
+      if (params.has('code') || params.has('state')) {
+        window.history.replaceState({}, document.title, window.location.pathname)
+      }
+    }
+  }, [auth0Error])
 
   const [user, setUser] = useState<User | null>(null)
   const [familyId, setFamilyId] = useState<string | null>(null)
