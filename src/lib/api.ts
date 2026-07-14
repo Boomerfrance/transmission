@@ -252,12 +252,14 @@ export interface Document {
 
 export const documents = {
   list: () => request<Document[]>('/documents'),
-  create: (data: { name: string; category: string; status?: string; notes?: string }) =>
+  create: (data: { name: string; category: string; status?: string; notes?: string; fileName?: string; fileType?: string; fileSize?: number; fileData?: string }) =>
     request<Document>('/documents', { method: 'POST', body: JSON.stringify(data) }),
-  update: (data: { id: string; name?: string; category?: string; status?: string; notes?: string }) =>
+  update: (data: { id: string; name?: string; category?: string; status?: string; notes?: string; fileName?: string; fileType?: string; fileSize?: number; fileData?: string }) =>
     request<Document>('/documents', { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<{ success: boolean }>('/documents', { method: 'DELETE', body: JSON.stringify({ id }) }),
+  download: (id: string) =>
+    request<{ fileName: string; fileType: string; fileData: string }>(`/documents?download=${id}`),
 }
 
 // ── Checklist ─────────────────────────────────────────

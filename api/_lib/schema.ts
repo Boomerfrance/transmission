@@ -110,6 +110,7 @@ export const documents = pgTable('documents', {
   fileName: varchar('file_name', { length: 255 }),
   fileType: varchar('file_type', { length: 100 }),
   fileSize: integer('file_size'),
+  fileData: text('file_data'), // base64-encoded file content (max ~2MB)
   uploadedBy: uuid('uploaded_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

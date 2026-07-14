@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   FileText,
   Plus,
@@ -11,6 +11,9 @@ import {
   AlertCircle,
   FolderOpen,
   Filter,
+  Upload,
+  Download,
+  File,
 } from 'lucide-react'
 import { documents as docsApi, type Document } from '../lib/api'
 
@@ -51,12 +54,16 @@ interface FormData {
 
 const emptyForm: FormData = { name: '', category: 'identite', status: 'a_fournir', notes: '' }
 
+const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2MB
+
 export default function Documents() {
   const [docs, setDocs] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormData>(emptyForm)
+  const [pendingFile, setPendingFile] = useState<{ name: string; type: string; size: number; data: string } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [filterCat, setFilterCat] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -76,16 +83,52 @@ export default function Documents() {
     if (!form.name.trim()) return
     setSubmitting(true)
     try {
+      const payload: any = { ...form }
+      if (pendingFile) {
+        payload.fileName = pendingFile.name
+        payload.fileType = pendingFile.type
+        payload.fileSize = pendingFile.size
+        payload.fileData = pendingFile.data
+        if (!payload.status || payload.status === 'a_fournir') payload.status = 'obtenu'
+      }
       if (editingId) {
-        const updated = await docsApi.update({ id: editingId, ...form })
+        const updated = await docsApi.update({ id: editingId, ...payload })
         setDocs((prev) => prev.map((d) => (d.id === editingId ? updated : d)))
       } else {
-        const created = await docsApi.create(form)
+        const created = await docsApi.create(payload)
         setDocs((prev) => [...prev, created])
       }
       resetForm()
     } catch { /* ignore */ }
     setSubmitting(false)
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Fichier trop volumineux (max 2 Mo)')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(',')[1]
+      setPendingFile({ name: file.name, type: file.type, size: file.size, data: base64 })
+      if (!form.name.trim()) setForm(f => ({ ...f, name: file.name.replace(/\.[^.]+$/, '') }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  async function handleDownload(doc: Document) {
+    try {
+      const result = await docsApi.download(doc.id)
+      const link = document.createElement('a')
+      link.href = `data:${result.fileType};base64,${result.fileData}`
+      link.download = result.fileName || doc.name
+      link.click()
+    } catch {
+      alert('Erreur lors du téléchargement.')
+    }
   }
 
   async function handleDelete(id: string) {
@@ -113,6 +156,7 @@ export default function Documents() {
     setForm(emptyForm)
     setEditingId(null)
     setShowForm(false)
+    setPendingFile(null)
   }
 
   async function addSuggested(sug: { name: string; category: string }) {
@@ -301,6 +345,38 @@ export default function Documents() {
                 className="w-full px-3 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500/20 focus:border-navy-400 resize-y"
               />
             </div>
+
+            {/* File upload */}
+            <div>
+              <label className="block text-sm font-medium text-navy-700 mb-1">Fichier (optionnel, max 2 Mo)</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                onChange={handleFileSelect}
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                className="hidden"
+              />
+              {pendingFile ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 border border-emerald-200 bg-emerald-50 rounded-lg">
+                  <File size={16} className="text-emerald-600 flex-shrink-0" />
+                  <span className="text-sm text-emerald-700 flex-1 truncate">{pendingFile.name}</span>
+                  <span className="text-xs text-emerald-500">{(pendingFile.size / 1024).toFixed(0)} Ko</span>
+                  <button type="button" onClick={() => setPendingFile(null)} className="text-emerald-400 hover:text-red-500">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-3 border-2 border-dashed border-navy-200 rounded-lg text-sm text-navy-500 hover:border-navy-400 hover:text-navy-700 transition-colors"
+                >
+                  <Upload size={16} />
+                  Choisir un fichier
+                </button>
+              )}
+            </div>
+
             <div className="flex justify-end gap-2">
               <button type="button" onClick={resetForm} className="px-4 py-2 text-sm text-navy-600 hover:text-navy-800">
                 Annuler
@@ -354,9 +430,15 @@ export default function Documents() {
                       {cat?.emoji || '📎'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-navy-800 text-sm">{doc.name}</h3>
+                      <h3 className="font-medium text-navy-800 text-sm flex items-center gap-1.5">
+                        {doc.name}
+                        {doc.fileName && <File size={12} className="text-emerald-500 flex-shrink-0" />}
+                      </h3>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-xs text-navy-400">{cat?.label || doc.category}</span>
+                        {doc.fileName && (
+                          <span className="text-xs text-emerald-500">{doc.fileName}</span>
+                        )}
                         {doc.notes && (
                           <span className="text-xs text-navy-400 truncate max-w-48">• {doc.notes}</span>
                         )}
@@ -374,6 +456,11 @@ export default function Documents() {
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
+                    {doc.fileName && (
+                      <button onClick={() => handleDownload(doc)} className="p-1.5 text-navy-400 hover:text-emerald-600" title="Télécharger">
+                        <Download size={14} />
+                      </button>
+                    )}
                     <button onClick={() => startEdit(doc)} className="p-1.5 text-navy-400 hover:text-navy-600">
                       <Pencil size={14} />
                     </button>

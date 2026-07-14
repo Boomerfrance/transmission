@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Users, Plus, Edit3, Trash2, X, ChevronDown, ChevronRight, UserPlus } from 'lucide-react'
+import { Users, Plus, Edit3, Trash2, X, ChevronDown, ChevronRight, UserPlus, GitBranch, List } from 'lucide-react'
 import { family as familyApi, type FamilyMember } from '../lib/api'
 
 const RELATIONSHIPS = [
@@ -152,6 +152,7 @@ export default function FamilyTree() {
   const [formParentId, setFormParentId] = useState<string | undefined>()
   const [form, setForm] = useState({ name: '', relationship: 'fils', birthYear: '', notes: '', parentId: '' })
   const [saving, setSaving] = useState(false)
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph')
 
   const load = useCallback(async () => {
     try {
@@ -253,6 +254,24 @@ export default function FamilyTree() {
         </button>
       </div>
 
+      {/* View toggle */}
+      {members.length > 0 && (
+        <div className="flex gap-1 bg-navy-100/60 p-1 rounded-xl w-fit">
+          <button
+            onClick={() => setViewMode('graph')}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'graph' ? 'bg-white text-navy-800 shadow-sm' : 'text-navy-500 hover:text-navy-700'}`}
+          >
+            <GitBranch size={14} /> Graphique
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-white text-navy-800 shadow-sm' : 'text-navy-500 hover:text-navy-700'}`}
+          >
+            <List size={14} /> Liste
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-navy-100 p-4 text-center">
@@ -288,6 +307,137 @@ export default function FamilyTree() {
             <Plus size={16} className="inline mr-2" />
             Ajouter le premier membre
           </button>
+        </div>
+      ) : viewMode === 'graph' ? (
+        /* Graphical tree view */
+        <div className="bg-white rounded-2xl border border-navy-100 p-6 overflow-x-auto">
+          <div className="flex flex-col items-center min-w-fit">
+            {(() => {
+              // Group by generation
+              const conjoint = members.find(m => m.relationship === 'conjoint')
+              const parents = members.filter(m => ['pere', 'mere'].includes(m.relationship))
+              const children = members.filter(m => ['fils', 'fille'].includes(m.relationship))
+              const grandchildren = members.filter(m => ['petit-fils', 'petite-fille'].includes(m.relationship))
+              const siblings = members.filter(m => ['frere', 'soeur'].includes(m.relationship))
+              const others = members.filter(m =>
+                !['conjoint', 'pere', 'mere', 'fils', 'fille', 'petit-fils', 'petite-fille', 'frere', 'soeur'].includes(m.relationship)
+              )
+
+              const NodeCard = ({ m, size = 'md' }: { m: FamilyMember; size?: 'sm' | 'md' }) => {
+                const rel = RELATIONSHIPS.find(r => r.value === m.relationship)
+                const colors = REL_COLORS[m.relationship] || 'bg-gray-100 text-gray-700 border-gray-200'
+                const initials = m.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase()
+                return (
+                  <div
+                    className={`flex flex-col items-center cursor-pointer group ${size === 'sm' ? 'w-20' : 'w-28'}`}
+                    onClick={() => openEdit(m)}
+                  >
+                    <div className={`${size === 'sm' ? 'w-12 h-12 text-sm' : 'w-16 h-16 text-lg'} rounded-full ${colors} border-2 flex items-center justify-center font-bold group-hover:shadow-lg transition-shadow`}>
+                      {initials}
+                    </div>
+                    <p className={`mt-1.5 font-medium text-navy-800 text-center leading-tight ${size === 'sm' ? 'text-[10px]' : 'text-xs'}`}>
+                      {m.name}
+                    </p>
+                    <span className={`${size === 'sm' ? 'text-[9px]' : 'text-[10px]'} text-navy-400`}>
+                      {rel?.label || m.relationship}
+                      {m.birthYear ? ` (${m.birthYear})` : ''}
+                    </span>
+                  </div>
+                )
+              }
+
+              return (
+                <>
+                  {/* Parents generation */}
+                  {parents.length > 0 && (
+                    <>
+                      <div className="flex gap-6 justify-center mb-2">
+                        {parents.map(p => <NodeCard key={p.id} m={p} />)}
+                      </div>
+                      <div className="w-0.5 h-6 bg-navy-200" />
+                    </>
+                  )}
+
+                  {/* Self + Conjoint */}
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="flex flex-col items-center w-28">
+                      <div className="w-16 h-16 rounded-full bg-navy-800 text-white flex items-center justify-center text-lg font-bold">
+                        Moi
+                      </div>
+                      <p className="mt-1.5 font-medium text-navy-800 text-xs">Vous</p>
+                    </div>
+                    {conjoint && (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <div className="w-8 h-0.5 bg-rose-300" />
+                          <span className="text-rose-400 text-xs">♥</span>
+                          <div className="w-8 h-0.5 bg-rose-300" />
+                        </div>
+                        <NodeCard m={conjoint} />
+                      </>
+                    )}
+                  </div>
+
+                  {/* Siblings */}
+                  {siblings.length > 0 && (
+                    <div className="flex items-start gap-4 mb-2">
+                      <div className="text-[10px] text-navy-400 font-medium uppercase tracking-wide mt-2">Fratrie</div>
+                      <div className="flex gap-4">
+                        {siblings.map(s => <NodeCard key={s.id} m={s} size="sm" />)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Children */}
+                  {children.length > 0 && (
+                    <>
+                      <div className="w-0.5 h-6 bg-navy-200" />
+                      {children.length > 1 && (
+                        <div className="flex items-center">
+                          {children.map((_, i) => (
+                            <div key={i} className={`${i === 0 ? '' : 'border-t-2 border-navy-200'} ${i === 0 ? 'w-0' : 'flex-1'}`} style={{ minWidth: i > 0 ? '60px' : 0 }} />
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-6 justify-center mb-2">
+                        {children.map(c => (
+                          <div key={c.id} className="flex flex-col items-center">
+                            <div className="w-0.5 h-4 bg-navy-200" />
+                            <NodeCard m={c} />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Grandchildren */}
+                  {grandchildren.length > 0 && (
+                    <>
+                      <div className="w-0.5 h-4 bg-navy-200" />
+                      <div className="flex gap-4 justify-center">
+                        {grandchildren.map(gc => (
+                          <div key={gc.id} className="flex flex-col items-center">
+                            <div className="w-0.5 h-4 bg-navy-200" />
+                            <NodeCard m={gc} size="sm" />
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Others */}
+                  {others.length > 0 && (
+                    <div className="mt-6 pt-4 border-t border-navy-100 w-full">
+                      <p className="text-xs text-navy-400 font-medium mb-3 text-center uppercase tracking-wide">Autres membres</p>
+                      <div className="flex gap-4 justify-center flex-wrap">
+                        {others.map(o => <NodeCard key={o.id} m={o} size="sm" />)}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-navy-100 p-6">
