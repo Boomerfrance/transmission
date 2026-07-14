@@ -39,15 +39,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Fetch all data in parallel
-    const [assetsList, canvasList, checklistList, documentsList] = await Promise.all([
+    const [assetsList, canvasList, checklistList, documentsList, membersList] = await Promise.all([
       db.select().from(schema.assets).where(eq(schema.assets.familyId, family.id)).orderBy(schema.assets.category),
       db.select().from(schema.canvasAnswers).where(eq(schema.canvasAnswers.familyId, family.id)),
       db.select().from(schema.checklistItems).where(eq(schema.checklistItems.familyId, family.id)).orderBy(schema.checklistItems.sortOrder),
       db.select().from(schema.documents).where(eq(schema.documents.familyId, family.id)).orderBy(schema.documents.category),
+      db.select().from(schema.familyMembers).where(eq(schema.familyMembers.familyId, family.id)),
     ])
 
-    // Compute totals
-    const totalPatrimoine = assetsList.reduce((sum, a) => sum + parseFloat(a.value as string), 0)
+    // Compute totals (actif − passif)
+    const actifList = assetsList.filter(a => a.category !== 'dette')
+    const debtList = assetsList.filter(a => a.category === 'dette')
+    const totalActif = actifList.reduce((sum, a) => sum + parseFloat(a.value as string), 0)
+    const totalPassif = debtList.reduce((sum, a) => sum + parseFloat(a.value as string), 0)
+    const totalPatrimoine = totalActif - totalPassif
     const checklistDone = checklistList.filter((c) => c.isCompleted).length
     const checklistTotal = checklistList.length
     const docsObtenu = documentsList.filter((d) => d.status === 'obtenu').length
@@ -59,7 +64,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       patrimoine: {
         assets: assetsList,
         total: totalPatrimoine,
+        totalActif,
+        totalPassif,
       },
+      familyMembers: membersList,
       canvas: canvasList,
       checklist: {
         items: checklistList,

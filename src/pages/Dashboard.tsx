@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../lib/AuthContext'
 import { assets as assetsApi, canvas as canvasApi, documents as docsApi, checklist as checklistApi } from '../lib/api'
+import OnboardingWizard from '../components/OnboardingWizard'
 
 const steps = [
   {
@@ -72,9 +73,11 @@ export default function Dashboard() {
   const [checkDone, setCheckDone] = useState(0)
   const [checkTotal, setCheckTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     async function load() {
+      let hasData = false
       try {
         const [assetList, canvasList, docsList, checkList] = await Promise.all([
           assetsApi.list().catch(() => []),
@@ -88,8 +91,13 @@ export default function Dashboard() {
         setDocsTotal(docsList.length)
         setCheckDone(checkList.filter((c) => c.isCompleted).length)
         setCheckTotal(checkList.length)
+        hasData = assetList.length > 0 || canvasList.filter((a) => a.answer.trim().length > 0).length > 0
       } catch { /* ignore */ }
       setLoading(false)
+      // Show onboarding for new users who haven't dismissed it
+      if (!hasData && !localStorage.getItem('onboarding_dismissed')) {
+        setShowOnboarding(true)
+      }
     }
     load()
   }, [])
@@ -143,6 +151,16 @@ export default function Dashboard() {
           Voici l'avancement de la préparation de votre transmission patrimoniale.
         </p>
       </div>
+
+      {/* Onboarding wizard for new users */}
+      {showOnboarding && (
+        <OnboardingWizard
+          onDismiss={() => {
+            setShowOnboarding(false)
+            localStorage.setItem('onboarding_dismissed', '1')
+          }}
+        />
+      )}
 
       {/* Progress overview */}
       <div className="bg-gradient-to-r from-navy-800 to-navy-700 rounded-2xl p-6 sm:p-8 mb-8 text-white">

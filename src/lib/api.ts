@@ -320,7 +320,8 @@ export const blog = {
 export interface DossierExport {
   user: { name: string; email: string }
   family: { id: string; name: string }
-  patrimoine: { assets: Asset[]; total: number }
+  patrimoine: { assets: Asset[]; total: number; totalActif: number; totalPassif: number }
+  familyMembers: { id: string; name: string; relationship: string; birthYear: number | null }[]
   canvas: CanvasAnswer[]
   checklist: { items: ChecklistItem[]; completed: number; total: number; progress: number }
   documents: { items: Document[]; obtained: number; total: number }

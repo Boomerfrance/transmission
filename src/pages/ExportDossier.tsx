@@ -35,6 +35,7 @@ const ASSET_CATEGORIES: Record<string, string> = {
   financier: 'Financier',
   professionnel: 'Professionnel',
   autre: 'Autre',
+  dette: 'Dettes & Passif',
 }
 
 function formatEuro(value: number | string): string {
@@ -84,7 +85,7 @@ export default function ExportDossier() {
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(36)
     doc.setFont('helvetica', 'bold')
-    doc.text('TRANSMISSION', pageWidth / 2, 100, { align: 'center' })
+    doc.text('LÈGUE FACILE', pageWidth / 2, 100, { align: 'center' })
 
     doc.setFontSize(14)
     doc.setFont('helvetica', 'normal')
@@ -112,8 +113,8 @@ export default function ExportDossier() {
     doc.setFontSize(11)
     doc.setFont('helvetica', 'normal')
     const summaryLines = [
-      `Patrimoine total : ${formatEuro(preview.patrimoine.total)}`,
-      `Biens inventoriés : ${preview.patrimoine.assets.length}`,
+      `Patrimoine net : ${formatEuro(preview.patrimoine.total)}${preview.patrimoine.totalPassif > 0 ? ` (actif ${formatEuro(preview.patrimoine.totalActif)} − passif ${formatEuro(preview.patrimoine.totalPassif)})` : ''}`,
+      `Biens inventoriés : ${preview.patrimoine.assets.filter(a => a.category !== 'dette').length}${preview.patrimoine.assets.filter(a => a.category === 'dette').length > 0 ? ` + ${preview.patrimoine.assets.filter(a => a.category === 'dette').length} dette(s)` : ''}`,
       `Questions canvas complétées : ${preview.canvas.length}`,
       `Checklist : ${preview.checklist.completed} / ${preview.checklist.total} (${preview.checklist.progress}%)`,
       `Documents : ${preview.documents.obtained} / ${preview.documents.total} obtenus`,
@@ -188,6 +189,139 @@ export default function ExportDossier() {
       doc.setFont('helvetica', 'bold')
       doc.text(`TOTAL PATRIMOINE : ${formatEuro(preview.patrimoine.total)}`, pageWidth - margin, y, { align: 'right' })
       y += 12
+    }
+
+    // ── Simulation fiscale ──
+    if (preview.patrimoine.total > 0 && preview.familyMembers && preview.familyMembers.length > 0) {
+      addPage()
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Simulation fiscale indicative', margin, y)
+      y += 10
+
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(120, 120, 120)
+      doc.text('Estimation basée sur les barèmes fiscaux 2024. Ne constitue pas un conseil fiscal.', margin, y)
+      y += 8
+      doc.setTextColor(15, 23, 42)
+
+      // Patrimoine summary
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Patrimoine net taxable : ${formatEuro(preview.patrimoine.total)}`, margin, y)
+      y += 6
+      if (preview.patrimoine.totalPassif > 0) {
+        doc.text(`  Actif brut : ${formatEuro(preview.patrimoine.totalActif)}  |  Passif : −${formatEuro(preview.patrimoine.totalPassif)}`, margin, y)
+        y += 6
+      }
+      y += 4
+
+      // Compute succession simulation
+      const BAREME = [
+        { max: 8072, rate: 0.05 },
+        { max: 12109, rate: 0.10 },
+        { max: 15932, rate: 0.15 },
+        { max: 552324, rate: 0.20 },
+        { max: 902838, rate: 0.30 },
+        { max: 1805677, rate: 0.40 },
+        { max: Infinity, rate: 0.45 },
+      ]
+      const ABATTEMENTS: Record<string, number> = {
+        conjoint: 0, // exonéré
+        enfant: 100000,
+        'petit-enfant': 31865,
+        'frère': 15932,
+        'sœur': 15932,
+        'neveu': 7967,
+        'nièce': 7967,
+        'autre': 1594,
+      }
+
+      function computeTax(taxable: number): number {
+        let remaining = taxable
+        let tax = 0
+        let prev = 0
+        for (const b of BAREME) {
+          const slice = Math.min(remaining, b.max - prev)
+          if (slice <= 0) break
+          tax += slice * b.rate
+          remaining -= slice
+          prev = b.max
+        }
+        return Math.round(tax)
+      }
+
+      const members = preview.familyMembers
+      const hasConjoint = members.some(m => m.relationship.toLowerCase().includes('conjoint'))
+      const enfants = members.filter(m => m.relationship.toLowerCase().includes('enfant') && !m.relationship.toLowerCase().includes('petit'))
+      const nbEnfants = enfants.length || 1
+      const montant = preview.patrimoine.total
+
+      doc.setFontSize(13)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Scénario succession', margin, y)
+      y += 8
+
+      if (hasConjoint) {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.text('• Conjoint survivant : exonéré de droits de succession (art. 796-0 bis CGI)', margin + 4, y)
+        y += 7
+      }
+
+      if (nbEnfants > 0) {
+        const partParEnfant = Math.floor(montant / nbEnfants)
+        const abattement = ABATTEMENTS['enfant']
+        const taxableParEnfant = Math.max(0, partParEnfant - abattement)
+        const droitParEnfant = computeTax(taxableParEnfant)
+        const totalDroits = droitParEnfant * nbEnfants
+
+        doc.setFontSize(10)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`• ${nbEnfants} enfant${nbEnfants > 1 ? 's' : ''} — Part par enfant : ${formatEuro(partParEnfant)}`, margin + 4, y)
+        y += 6
+        doc.text(`  Abattement : ${formatEuro(abattement)} → Taxable : ${formatEuro(taxableParEnfant)}`, margin + 4, y)
+        y += 6
+        doc.text(`  Droits par enfant : ${formatEuro(droitParEnfant)}`, margin + 4, y)
+        y += 8
+        doc.setFont('helvetica', 'bold')
+        doc.text(`  Total droits de succession estimés : ${formatEuro(totalDroits)}`, margin + 4, y)
+        y += 6
+        const tauxEffectif = montant > 0 ? ((totalDroits / montant) * 100).toFixed(1) : '0'
+        doc.setFont('helvetica', 'normal')
+        doc.text(`  Taux effectif : ${tauxEffectif}%`, margin + 4, y)
+        y += 10
+      }
+
+      // Pistes d'optimisation
+      checkSpace(30)
+      doc.setFontSize(13)
+      doc.setFont('helvetica', 'bold')
+      doc.text("Pistes d'optimisation", margin, y)
+      y += 8
+
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'normal')
+      const tips = [
+        `Donation anticipée : l'abattement de ${formatEuro(100000)} par enfant se renouvelle tous les 15 ans.`,
+        `Assurance-vie : abattement supplémentaire de ${formatEuro(152500)} par bénéficiaire (primes avant 70 ans).`,
+        'Démembrement : donner la nue-propriété réduit la base taxable selon l\'âge du donateur.',
+      ]
+      if (montant > 500000) {
+        tips.push('Pacte Dutreil : exonération jusqu\'à 75% de la valeur des titres d\'entreprise.')
+      }
+      tips.forEach(tip => {
+        checkSpace(12)
+        const lines = doc.splitTextToSize(`• ${tip}`, contentWidth - 8)
+        lines.forEach((line: string) => {
+          doc.text(line, margin + 4, y)
+          y += 5
+        })
+        y += 2
+      })
+
+      y += 5
     }
 
     // ── Canvas answers ──
