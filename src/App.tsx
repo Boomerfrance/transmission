@@ -17,6 +17,7 @@ import Blog from './pages/Blog'
 import BlogArticle from './pages/BlogArticle'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import Legal from './pages/Legal'
 import Layout from './components/Layout'
 import AuthLayout from './components/AuthLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/simulateur" element={<Simulator />} />
       <Route path="/blog" element={<Blog />} />
       <Route path="/blog/:slug" element={<BlogArticle />} />
+      <Route path="/mentions-legales" element={<Legal />} />
 
       {/* Auth */}
       <Route element={<AuthLayout />}>

@@ -19,6 +19,7 @@ import { eq, and } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
 import { getAuthUser } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
+import { sendInvitationEmail, APP_URL } from '../_lib/email.js'
 import crypto from 'crypto'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -270,10 +271,22 @@ async function handleInvitations(req: VercelRequest, res: VercelResponse, auth: 
           inviteeUser.id,
           'invitation',
           'Invitation reçue',
-          `Vous avez été invité(e) à rejoindre un espace familial sur Transmission.`,
+          `Vous avez été invité(e) à rejoindre un espace familial sur Lègue Facile.`,
           '/invitations'
         )
       }
+
+      // Send invitation email
+      const [inviter] = await db.select({ name: schema.users.name }).from(schema.users).where(eq(schema.users.id, auth.userId)).limit(1)
+      const [familyInfo] = await db.select({ name: schema.families.name }).from(schema.families).where(eq(schema.families.id, familyId)).limit(1)
+      const acceptUrl = `${APP_URL}/invitations?token=${token}`
+
+      await sendInvitationEmail({
+        to: email,
+        inviterName: inviter?.name || 'Un membre',
+        familyName: familyInfo?.name || 'Famille',
+        acceptUrl,
+      })
 
       return res.status(201).json(invitation)
     } catch (err) {

@@ -277,6 +277,11 @@ export default function Landing() {
               </div>
               <span className="text-[14px] font-medium text-navy-700">Lègue Facile</span>
             </div>
+            <div className="flex items-center gap-4">
+              <Link to="/mentions-legales" className="text-sm text-navy-400 hover:text-navy-600 transition-colors">Mentions légales</Link>
+              <Link to="/mentions-legales" className="text-sm text-navy-400 hover:text-navy-600 transition-colors">CGU</Link>
+              <Link to="/mentions-legales" className="text-sm text-navy-400 hover:text-navy-600 transition-colors">RGPD</Link>
+            </div>
             <p className="text-sm text-navy-400">
               © 2026 Lègue Facile. Plateforme d'aide à la préparation — ne constitue pas un conseil juridique ou fiscal.
             </p>

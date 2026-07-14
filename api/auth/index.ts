@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
 import { signToken, getAuthUser } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
+import { sendPasswordResetEmail } from '../_lib/email.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'transmission-dev-secret'
 const APP_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173'
@@ -121,16 +122,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const resetLink = `${APP_URL}/reinitialiser-mot-de-passe?token=${resetToken}`
 
-      // Log reset link (visible in Vercel logs for now; replace with email service later)
-      console.log(`[PASSWORD RESET] User: ${user.email}, Link: ${resetLink}`)
+      // Send reset email (falls back to console.log if RESEND_API_KEY not set)
+      await sendPasswordResetEmail({
+        to: user.email,
+        resetUrl: resetLink,
+        userName: user.name,
+      })
 
-      // TODO: Integrate email service (Resend, SendGrid, or Gmail API) to send resetLink
-      // For now the token is returned in the response for development purposes
       return res.status(200).json({
         success: true,
         message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
-        // Include token in dev — remove in production when email service is integrated
-        ...(process.env.NODE_ENV !== 'production' ? { resetToken, resetLink } : {}),
       })
     } catch (err) {
       console.error('Forgot password error:', err)
