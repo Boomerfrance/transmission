@@ -43,19 +43,10 @@ export interface AuthResponse {
 }
 
 export const auth = {
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/auth?action=login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-
-  signup: (name: string, email: string, password: string) =>
-    request<AuthResponse>('/auth?action=signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
-
   me: () => request<{ user: AuthResponse['user']; family: { id: string; name: string } | null }>('/auth'),
 
-  forgotPassword: (email: string) =>
-    request<{ success: boolean; message: string; resetToken?: string; resetLink?: string }>('/auth?action=forgot', { method: 'POST', body: JSON.stringify({ email }) }),
-
-  resetPassword: (token: string, newPassword: string) =>
-    request<{ success: boolean; message: string }>('/auth?action=reset', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
+  auth0Login: (idToken: string) =>
+    request<AuthResponse>('/auth?action=auth0-login', { method: 'POST', body: JSON.stringify({ idToken }) }),
 }
 
 // ── Assets ────────────────────────────────────────────

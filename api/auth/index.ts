@@ -12,7 +12,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { eq } from 'drizzle-orm'
 import { db, schema } from '../_lib/db.js'
-import { signToken, getAuthUser } from '../_lib/auth.js'
+import { signToken, getAuthUser, verifyAuth0Token } from '../_lib/auth.js'
 import { handleCors } from '../_lib/cors.js'
 import { sendPasswordResetEmail } from '../_lib/email.js'
 
@@ -93,6 +93,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (err) {
       console.error('Signup error:', err)
       return res.status(500).json({ error: 'Erreur serveur. Réessayez plus tard.' })
+    }
+  }
+
+  // POST action=auth0-login — Login via Auth0 ID token
+  if (action === 'auth0-login') {
+    const { idToken } = req.body
+    if (!idToken) return res.status(400).json({ error: 'ID token requis.' })
+
+    try {
+      const auth0User = await verifyAuth0Token(idToken)
+
+      // Find existing user by email
+      let [user] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.email, auth0User.email))
+        .limit(1)
+
+      if (!user) {
+        // Create new user (passwordHash is a placeholder — Auth0 handles auth)
+        const [newUser] = await db
+          .insert(schema.users)
+          .values({
+            name: auth0User.name,
+            email: auth0User.email,
+            passwordHash: `AUTH0:${auth0User.sub}`,
+            role: 'user',
+          })
+          .returning()
+        user = newUser
+
+        // Create a family for the new user
+        await db.insert(schema.families).values({
+          name: `Famille ${auth0User.name.split(' ').pop() || auth0User.name}`,
+          ownerId: user.id,
+        })
+      }
+
+      // Get family
+      const [family] = await db
+        .select({ id: schema.families.id })
+        .from(schema.families)
+        .where(eq(schema.families.ownerId, user.id))
+        .limit(1)
+
+      const token = signToken({ userId: user.id, email: user.email, role: user.role })
+
+      return res.status(200).json({
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+        familyId: family?.id || null,
+      })
+    } catch (err) {
+      console.error('Auth0 login error:', err)
+      return res.status(401).json({ error: 'Authentification Auth0 échouée.' })
     }
   }
 

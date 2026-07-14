@@ -9,8 +9,10 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react'
+import { useAuth } from '../lib/AuthContext'
 
 export default function Landing() {
+  const { login, signup } = useAuth()
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -30,18 +32,18 @@ export default function Landing() {
               <Link to="/blog" className="text-sm text-navy-600 hover:text-navy-800 transition-colors">Blog & FAQ</Link>
             </div>
             <div className="flex items-center gap-3">
-              <Link
-                to="/connexion"
+              <button
+                onClick={login}
                 className="text-sm font-medium text-navy-600 hover:text-navy-800 transition-colors"
               >
                 Connexion
-              </Link>
-              <Link
-                to="/inscription"
+              </button>
+              <button
+                onClick={signup}
                 className="text-sm font-medium bg-navy-800 text-white px-4 py-2 rounded-lg hover:bg-navy-700 transition-colors shadow-sm"
               >
                 Commencer
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -84,13 +86,13 @@ export default function Landing() {
                 Simuler mes droits de succession
                 <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
               </Link>
-              <Link
-                to="/inscription"
+              <button
+                onClick={signup}
                 className="inline-flex items-center justify-center gap-2 bg-white text-navy-700 px-6 py-3.5 rounded-xl font-medium border border-navy-200 hover:border-navy-300 hover:bg-navy-50/50 transition-all"
               >
                 Créer mon espace famille
                 <ChevronRight size={16} />
-              </Link>
+              </button>
             </div>
 
             {/* Social proof */}
@@ -254,13 +256,13 @@ export default function Landing() {
                   <Calculator size={18} />
                   Lancer le simulateur gratuit
                 </Link>
-                <Link
-                  to="/inscription"
+                <button
+                  onClick={signup}
                   className="inline-flex items-center gap-2 bg-navy-700/60 text-white px-6 py-3.5 rounded-xl font-medium border border-navy-600/40 hover:bg-navy-700 transition-colors"
                 >
                   Créer mon espace
                   <ArrowRight size={16} />
-                </Link>
+                </button>
               </div>
             </div>
           </div>
