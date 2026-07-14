@@ -91,20 +91,29 @@ async function buildUserContext(userId: string): Promise<string> {
       }
     }
 
-    // Patrimoine
+    // Patrimoine (actif + passif)
     if (assetsList.length > 0) {
-      const total = assetsList.reduce((s, a) => s + Number(a.value), 0)
+      const actifItems = assetsList.filter(a => a.category !== 'dette')
+      const debtItems = assetsList.filter(a => a.category === 'dette')
+      const totalActif = actifItems.reduce((s, a) => s + Number(a.value), 0)
+      const totalPassif = debtItems.reduce((s, a) => s + Number(a.value), 0)
+      const totalNet = totalActif - totalPassif
+
       const byCategory: Record<string, { items: string[]; total: number }> = {}
-      for (const a of assetsList) {
+      for (const a of actifItems) {
         if (!byCategory[a.category]) byCategory[a.category] = { items: [], total: 0 }
         byCategory[a.category].items.push(`${a.label} (${Number(a.value).toLocaleString('fr-FR')} €)`)
         byCategory[a.category].total += Number(a.value)
       }
-      parts.push(`\nPatrimoine déclaré (${assetsList.length} bien(s), total : ${total.toLocaleString('fr-FR')} €) :`)
+      parts.push(`\nPatrimoine déclaré — Actif : ${totalActif.toLocaleString('fr-FR')} €, Passif : ${totalPassif.toLocaleString('fr-FR')} €, Net : ${totalNet.toLocaleString('fr-FR')} € :`)
       for (const [cat, data] of Object.entries(byCategory)) {
         const catLabel = cat === 'immobilier' ? 'Immobilier' : cat === 'financier' ? 'Financier' : cat === 'professionnel' ? 'Professionnel' : cat.charAt(0).toUpperCase() + cat.slice(1)
         parts.push(`  ${catLabel} (${data.total.toLocaleString('fr-FR')} €) :`)
         for (const item of data.items) parts.push(`    - ${item}`)
+      }
+      if (debtItems.length > 0) {
+        parts.push(`  Dettes & Passif (${totalPassif.toLocaleString('fr-FR')} €) :`)
+        for (const d of debtItems) parts.push(`    - ${d.label} (${Number(d.value).toLocaleString('fr-FR')} €)`)
       }
     }
 

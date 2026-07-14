@@ -225,7 +225,11 @@ export default function Simulator() {
     setLoadingPatrimoine(true)
     try {
       const data = await assetsApi.list()
-      const total = data.reduce((s: number, a: Asset) => s + Number(a.value), 0)
+      const actif = data.filter((a: Asset) => a.category !== 'dette')
+      const passif = data.filter((a: Asset) => a.category === 'dette')
+      const totalActif = actif.reduce((s: number, a: Asset) => s + Number(a.value), 0)
+      const totalPassif = passif.reduce((s: number, a: Asset) => s + Number(a.value), 0)
+      const total = totalActif - totalPassif
       setPatrimoineTotal(total)
       if (total > 0) {
         setMontantRaw(fmtNum(total))

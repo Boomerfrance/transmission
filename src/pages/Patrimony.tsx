@@ -12,10 +12,14 @@ import {
   Landmark,
   Loader2,
   AlertCircle,
+  CreditCard,
+  ArrowDown,
+  ArrowUp,
+  Scale,
 } from 'lucide-react'
 import { assets as assetsApi, type Asset as ApiAsset } from '../lib/api'
 
-type AssetCategory = 'immobilier' | 'financier' | 'professionnel' | 'autre'
+type AssetCategory = 'immobilier' | 'financier' | 'professionnel' | 'autre' | 'dette'
 
 interface Asset {
   id: string
@@ -25,12 +29,16 @@ interface Asset {
   notes: string
 }
 
-const categoryConfig: Record<AssetCategory, { icon: React.ElementType; label: string; color: string; bg: string }> = {
+const categoryConfig: Record<AssetCategory, { icon: React.ElementType; label: string; color: string; bg: string; isDebt?: boolean }> = {
   immobilier: { icon: Home, label: 'Immobilier', color: 'text-blue-600', bg: 'bg-blue-50' },
   financier: { icon: PiggyBank, label: 'Financier', color: 'text-emerald-600', bg: 'bg-emerald-50' },
   professionnel: { icon: Briefcase, label: 'Professionnel', color: 'text-amber-600', bg: 'bg-amber-50' },
   autre: { icon: TrendingUp, label: 'Autre', color: 'text-purple-600', bg: 'bg-purple-50' },
+  dette: { icon: CreditCard, label: 'Dettes & Passif', color: 'text-red-600', bg: 'bg-red-50', isDebt: true },
 }
+
+const actifCategories: AssetCategory[] = ['immobilier', 'financier', 'professionnel', 'autre']
+const debtCategory: AssetCategory = 'dette'
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -55,7 +63,6 @@ export default function Patrimony() {
   const [form, setForm] = useState({ category: 'immobilier' as AssetCategory, label: '', value: '', notes: '' })
   const [submitting, setSubmitting] = useState(false)
 
-  // Load assets on mount
   useEffect(() => {
     async function load() {
       try {
@@ -70,8 +77,13 @@ export default function Patrimony() {
     load()
   }, [])
 
-  const total = assets.reduce((s, a) => s + a.value, 0)
-  const byCategory = assets.reduce((acc, a) => {
+  const actifAssets = assets.filter((a) => a.category !== debtCategory)
+  const debtAssets = assets.filter((a) => a.category === debtCategory)
+  const totalActif = actifAssets.reduce((s, a) => s + a.value, 0)
+  const totalPassif = debtAssets.reduce((s, a) => s + a.value, 0)
+  const totalNet = totalActif - totalPassif
+
+  const byCategoryActif = actifAssets.reduce((acc, a) => {
     acc[a.category] = (acc[a.category] || 0) + a.value
     return acc
   }, {} as Record<AssetCategory, number>)
@@ -84,6 +96,12 @@ export default function Patrimony() {
       setEditId(null)
       setForm({ category: 'immobilier', label: '', value: '', notes: '' })
     }
+    setShowForm(true)
+  }
+
+  const openDebtForm = () => {
+    setEditId(null)
+    setForm({ category: 'dette', label: '', value: '', notes: '' })
     setShowForm(true)
   }
 
@@ -136,16 +154,25 @@ export default function Patrimony() {
             Cartographie du patrimoine
           </h1>
           <p className="text-navy-500 text-sm">
-            Inventoriez l'ensemble de vos biens pour préparer la transmission.
+            Inventoriez biens et dettes pour connaître votre patrimoine net.
           </p>
         </div>
-        <button
-          onClick={() => openForm()}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors"
-        >
-          <Plus size={15} />
-          Ajouter un bien
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openDebtForm}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            <CreditCard size={15} />
+            Ajouter une dette
+          </button>
+          <button
+            onClick={() => openForm()}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 transition-colors"
+          >
+            <Plus size={15} />
+            Ajouter un bien
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -158,21 +185,41 @@ export default function Patrimony() {
         </div>
       )}
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
-        <div className="col-span-2 lg:col-span-1 bg-gradient-to-br from-navy-800 to-navy-700 rounded-xl p-5 text-white">
-          <div className="flex items-center gap-2 mb-2 text-navy-200">
-            <Landmark size={16} />
-            <span className="text-xs font-medium uppercase tracking-wide">Total</span>
+      {/* Net patrimoine banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-500 rounded-xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-2 text-emerald-100">
+            <ArrowUp size={16} />
+            <span className="text-xs font-medium uppercase tracking-wide">Total actif</span>
           </div>
-          <div className="text-2xl font-bold">{fmt(total)}</div>
-          <div className="text-xs text-navy-300 mt-1">{assets.length} bien{assets.length > 1 ? 's' : ''}</div>
+          <div className="text-2xl font-bold">{fmt(totalActif)}</div>
+          <div className="text-xs text-emerald-100 mt-1">{actifAssets.length} bien{actifAssets.length > 1 ? 's' : ''}</div>
         </div>
-        {(Object.keys(categoryConfig) as AssetCategory[]).map((cat) => {
+        <div className="bg-gradient-to-br from-red-500 to-red-400 rounded-xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-2 text-red-100">
+            <ArrowDown size={16} />
+            <span className="text-xs font-medium uppercase tracking-wide">Total passif</span>
+          </div>
+          <div className="text-2xl font-bold">−{fmt(totalPassif)}</div>
+          <div className="text-xs text-red-100 mt-1">{debtAssets.length} dette{debtAssets.length > 1 ? 's' : ''}</div>
+        </div>
+        <div className={`bg-gradient-to-br ${totalNet >= 0 ? 'from-navy-800 to-navy-700' : 'from-red-800 to-red-700'} rounded-xl p-5 text-white`}>
+          <div className="flex items-center gap-2 mb-2 text-navy-200">
+            <Scale size={16} />
+            <span className="text-xs font-medium uppercase tracking-wide">Patrimoine net</span>
+          </div>
+          <div className="text-2xl font-bold">{fmt(totalNet)}</div>
+          <div className="text-xs text-navy-300 mt-1">Actif − Passif</div>
+        </div>
+      </div>
+
+      {/* Category breakdown for actif */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        {actifCategories.map((cat) => {
           const cfg = categoryConfig[cat]
           const Icon = cfg.icon
-          const val = byCategory[cat] || 0
-          const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0
+          const val = byCategoryActif[cat] || 0
+          const pct = totalActif > 0 ? ((val / totalActif) * 100).toFixed(0) : 0
           return (
             <div key={cat} className="bg-white rounded-xl border border-navy-100 p-4">
               <div className={`flex items-center gap-1.5 mb-2 ${cfg.color}`}>
@@ -180,20 +227,24 @@ export default function Patrimony() {
                 <span className="text-xs font-medium">{cfg.label}</span>
               </div>
               <div className="text-lg font-bold text-navy-800">{fmt(val)}</div>
-              <div className="text-xs text-navy-400">{pct}% du total</div>
+              <div className="text-xs text-navy-400">{pct}% de l'actif</div>
             </div>
           )
         })}
       </div>
 
-      {/* Asset list */}
-      <div className="bg-white rounded-2xl border border-navy-100/60 overflow-hidden">
+      {/* Actif list */}
+      <div className="bg-white rounded-2xl border border-navy-100/60 overflow-hidden mb-6">
         <div className="px-6 py-4 border-b border-navy-100 flex items-center justify-between">
-          <h2 className="font-semibold text-navy-800">Liste des biens</h2>
+          <div className="flex items-center gap-2">
+            <ArrowUp size={16} className="text-emerald-500" />
+            <h2 className="font-semibold text-navy-800">Actif — Biens</h2>
+          </div>
+          <span className="text-sm font-medium text-emerald-600">{fmt(totalActif)}</span>
         </div>
 
         <div className="divide-y divide-navy-100/60">
-          {assets.map((asset) => {
+          {actifAssets.map((asset) => {
             const cfg = categoryConfig[asset.category]
             const Icon = cfg.icon
             return (
@@ -210,20 +261,14 @@ export default function Patrimony() {
                 <div className="text-right flex-shrink-0">
                   <div className="font-semibold text-navy-800">{fmt(asset.value)}</div>
                   <div className="text-xs text-navy-400">
-                    {total > 0 ? ((asset.value / total) * 100).toFixed(1) : 0}%
+                    {totalActif > 0 ? ((asset.value / totalActif) * 100).toFixed(1) : 0}%
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => openForm(asset)}
-                    className="p-1.5 text-navy-400 hover:text-navy-600 transition-colors"
-                  >
+                  <button onClick={() => openForm(asset)} className="p-1.5 text-navy-400 hover:text-navy-600 transition-colors">
                     <Edit2 size={14} />
                   </button>
-                  <button
-                    onClick={() => deleteAsset(asset.id)}
-                    className="p-1.5 text-navy-400 hover:text-red-500 transition-colors"
-                  >
+                  <button onClick={() => deleteAsset(asset.id)} className="p-1.5 text-navy-400 hover:text-red-500 transition-colors">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -231,15 +276,64 @@ export default function Patrimony() {
             )
           })}
 
-          {assets.length === 0 && (
+          {actifAssets.length === 0 && (
             <div className="px-6 py-12 text-center">
               <Landmark size={32} className="mx-auto text-navy-200 mb-3" />
               <p className="text-navy-500 text-sm">Aucun bien ajouté pour le moment.</p>
-              <button
-                onClick={() => openForm()}
-                className="mt-3 text-sm font-medium text-navy-600 hover:text-navy-800"
-              >
+              <button onClick={() => openForm()} className="mt-3 text-sm font-medium text-navy-600 hover:text-navy-800">
                 Ajouter votre premier bien
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Passif list */}
+      <div className="bg-white rounded-2xl border border-red-100/60 overflow-hidden">
+        <div className="px-6 py-4 border-b border-red-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ArrowDown size={16} className="text-red-500" />
+            <h2 className="font-semibold text-navy-800">Passif — Dettes & Emprunts</h2>
+          </div>
+          <span className="text-sm font-medium text-red-600">−{fmt(totalPassif)}</span>
+        </div>
+
+        <div className="divide-y divide-navy-100/60">
+          {debtAssets.map((asset) => {
+            const cfg = categoryConfig[asset.category]
+            const Icon = cfg.icon
+            return (
+              <div key={asset.id} className="flex items-center gap-4 px-6 py-4 hover:bg-red-50/30 transition-colors">
+                <div className={`w-10 h-10 rounded-lg ${cfg.bg} ${cfg.color} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-navy-800 text-sm">{asset.label}</div>
+                  {asset.notes && (
+                    <div className="text-xs text-navy-400 mt-0.5">{asset.notes}</div>
+                  )}
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-semibold text-red-600">−{fmt(asset.value)}</div>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => openForm(asset)} className="p-1.5 text-navy-400 hover:text-navy-600 transition-colors">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => deleteAsset(asset.id)} className="p-1.5 text-navy-400 hover:text-red-500 transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+
+          {debtAssets.length === 0 && (
+            <div className="px-6 py-8 text-center">
+              <CreditCard size={28} className="mx-auto text-navy-200 mb-3" />
+              <p className="text-navy-500 text-sm">Aucune dette déclarée.</p>
+              <button onClick={openDebtForm} className="mt-3 text-sm font-medium text-red-500 hover:text-red-700">
+                Ajouter un emprunt ou une dette
               </button>
             </div>
           )}
@@ -252,7 +346,9 @@ export default function Patrimony() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="flex items-center justify-between px-6 py-4 border-b border-navy-100">
               <h3 className="font-semibold text-navy-800">
-                {editId ? 'Modifier le bien' : 'Ajouter un bien'}
+                {editId
+                  ? form.category === 'dette' ? 'Modifier la dette' : 'Modifier le bien'
+                  : form.category === 'dette' ? 'Ajouter une dette' : 'Ajouter un bien'}
               </h3>
               <button onClick={() => setShowForm(false)} className="p-1.5 text-navy-400 hover:text-navy-600">
                 <X size={18} />
@@ -263,7 +359,10 @@ export default function Patrimony() {
               <div>
                 <label className="block text-sm font-medium text-navy-700 mb-1.5">Catégorie</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(categoryConfig) as AssetCategory[]).map((cat) => {
+                  {(form.category === 'dette'
+                    ? [debtCategory] as AssetCategory[]
+                    : actifCategories
+                  ).map((cat) => {
                     const cfg = categoryConfig[cat]
                     const Icon = cfg.icon
                     return (
@@ -273,7 +372,9 @@ export default function Patrimony() {
                         onClick={() => setForm((f) => ({ ...f, category: cat }))}
                         className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
                           form.category === cat
-                            ? 'border-navy-600 bg-navy-800 text-white'
+                            ? cat === 'dette'
+                              ? 'border-red-600 bg-red-600 text-white'
+                              : 'border-navy-600 bg-navy-800 text-white'
                             : 'border-navy-200 text-navy-600 hover:border-navy-300'
                         }`}
                       >
@@ -286,23 +387,27 @@ export default function Patrimony() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1.5">Description du bien</label>
+                <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                  {form.category === 'dette' ? 'Description de la dette' : 'Description du bien'}
+                </label>
                 <input
                   type="text"
                   value={form.label}
                   onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
-                  placeholder="Ex : Appartement Paris 15e"
+                  placeholder={form.category === 'dette' ? 'Ex : Emprunt immobilier Résidence principale' : 'Ex : Appartement Paris 15e'}
                   className="w-full px-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500/20 focus:border-navy-400"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-navy-700 mb-1.5">Valeur estimée (€)</label>
+                <label className="block text-sm font-medium text-navy-700 mb-1.5">
+                  {form.category === 'dette' ? 'Capital restant dû (€)' : 'Valeur estimée (€)'}
+                </label>
                 <input
                   type="text"
                   value={form.value}
                   onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
-                  placeholder="500 000"
+                  placeholder={form.category === 'dette' ? '150 000' : '500 000'}
                   className="w-full px-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500/20 focus:border-navy-400"
                 />
               </div>
@@ -312,7 +417,7 @@ export default function Patrimony() {
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                  placeholder="Détails supplémentaires..."
+                  placeholder={form.category === 'dette' ? 'Banque, taux, échéance…' : 'Détails supplémentaires...'}
                   rows={2}
                   className="w-full px-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-500/20 focus:border-navy-400 resize-none"
                 />
@@ -329,7 +434,11 @@ export default function Patrimony() {
               <button
                 onClick={saveAsset}
                 disabled={submitting}
-                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy-800 text-white rounded-lg hover:bg-navy-700 disabled:opacity-50"
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-50 ${
+                  form.category === 'dette'
+                    ? 'bg-red-600 hover:bg-red-500'
+                    : 'bg-navy-800 hover:bg-navy-700'
+                }`}
               >
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
                 {editId ? 'Enregistrer' : 'Ajouter'}
