@@ -70,6 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = await authApi.me()
           setUser(data.user)
           setFamilyId(data.family?.id || null)
+          // Send returning users into the app instead of leaving them on a
+          // public/landing page where it looks like they're still logged out.
+          if (PUBLIC_PATHS.includes(location.pathname)) {
+            navigate('/tableau-de-bord', { replace: true })
+          }
           setReady(true)
           return
         } catch {

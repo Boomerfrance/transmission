@@ -1,12 +1,18 @@
 import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
 export default function Signup() {
-  const { signup, loading } = useAuth()
+  const { signup, loading, user } = useAuth()
+  const navigate = useNavigate()
 
   useEffect(() => {
-    if (!loading) signup()
-  }, [loading, signup])
+    if (user) {
+      navigate('/tableau-de-bord', { replace: true })
+    } else if (!loading) {
+      signup()
+    }
+  }, [loading, signup, user, navigate])
 
   return (
     <div className="flex flex-col items-center justify-center gap-3">
